@@ -61,6 +61,8 @@ class MainWindow(QMainWindow):
         self.filepath = filepath
         # self.update_checker = UpdateChecker()
         self.auto_updater = AutoUpdater()
+        if self.auto_updater.update():
+            self.close_(force=True)
         if filepath != None:
             matplotlib.rcParams['savefig.directory'] = (os.path.dirname(filepath))
         self.ipython_w = IPythonWidget("")

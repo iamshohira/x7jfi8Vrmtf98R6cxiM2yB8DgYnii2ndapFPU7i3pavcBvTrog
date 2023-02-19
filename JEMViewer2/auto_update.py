@@ -5,7 +5,7 @@ from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 
-class AutoUpdater(QObject):
+class AutoUpdater:
     # git url
     version_file_url = "https://raw.githubusercontent.com/iamshohira/x7jfi8Vrmtf98R6cxiM2yB8DgYnii2ndapFPU7i3pavcBvTrog/master/VERSION"
     zip_url = "https://github.com/iamshohira/x7jfi8Vrmtf98R6cxiM2yB8DgYnii2ndapFPU7i3pavcBvTrog/archive/refs/heads/master.zip"
@@ -79,8 +79,8 @@ class AutoUpdater(QObject):
         self.finish()
 
     def finish(self):
-        reply = QMessageBox.question(self,'Update information',
-            f"Version {self.lv} has been downloaded. To apply the changes, please restart the software. Would you like to view the update logs?",
+        reply = QMessageBox.question(None,'Update information',
+            f"Version {self.lv} has been downloaded. The software will now shut down to apply the changes. Would you like to view the update logs?",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
         if reply == QMessageBox.Yes:
             print("open sites")
