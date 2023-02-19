@@ -24,6 +24,7 @@ def current_version():
     return list(map(int, line.split(".")))
 
 def latest_version():
+    request.urlcleanup()
     file = request.urlopen(version_file_url)
     lines = ""
     for line in file:
@@ -43,7 +44,7 @@ def extract_zip():
 def copy():
     shutil.rmtree(path_JEM)
     shutil.move(os.path.join(path_extracted,"JEMViewer2"), path_JEM)
-    shutil.move(os.path.join(path_extracted,"VERSION"), path_app)
+    shutil.move(os.path.join(path_extracted,"VERSION"), path_version_file)
 
 def clean():
     os.remove(path_zip)
