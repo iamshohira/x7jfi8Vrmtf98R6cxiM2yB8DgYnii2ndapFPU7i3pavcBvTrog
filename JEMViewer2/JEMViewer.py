@@ -20,6 +20,7 @@ from JEMViewer2.file_handler import savefile, envs
 from JEMViewer2.addon_installer import AddonInstaller
 from JEMViewer2.axeslinestool import AxesTool, LinesTool
 from JEMViewer2.update_checker import UpdateChecker
+from JEMViewer2.auto_update import AutoUpdater
 
 if os.name == "nt": #windows
     import PyQt6
@@ -58,10 +59,11 @@ class MainWindow(QMainWindow):
         if mode == floatstyle:
             self.setGeometry(300, 300, 800, 500)
         self.filepath = filepath
-        self.update_checker = UpdateChecker()
+        # self.update_checker = UpdateChecker()
+        self.auto_updater = AutoUpdater()
         if filepath != None:
             matplotlib.rcParams['savefig.directory'] = (os.path.dirname(filepath))
-        self.ipython_w = IPythonWidget(self.update_checker.header)
+        self.ipython_w = IPythonWidget("")
         self.ns = self.ipython_w.ns
         self.figure_widgets = []
         self.figs = []
@@ -456,7 +458,7 @@ class MainWindow(QMainWindow):
             "move_line": self.linestool.move_line,
             "update_legend": self.linestool.update_legend,
             "set_axesproperties": self.axestool.set_properties,
-            "JEMViewer": self.update_checker,
+            # "JEMViewer": self.update_checker,
             "legend_autoupdate": self.linestool.legend_autoupdate,
             "add_dock": self.add_dock,
             "add_mdi": self.add_mdiwindow,
