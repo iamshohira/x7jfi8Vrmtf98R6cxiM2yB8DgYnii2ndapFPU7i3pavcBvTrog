@@ -23,8 +23,7 @@ class AutoUpdater:
     path_git = os.path.join(path_app, ".git")
 
     def __init__(self):
-        super().__init__()
-        self.update()
+        pass
 
     def current_version(self):
         with open(self.path_version_file, "r") as f:
@@ -63,20 +62,21 @@ class AutoUpdater:
     def update(self):
         if os.path.exists(self.path_git):
             print("master files")
-            return
+            return False
         cv = self.current_version()
         lv = self.latest_version()
         if lv[1] != cv[1]:
             print("Major update was released.\nPlease visit the official cite.")
-            return
+            return False
         if lv[2] == cv[2]:
             print(f"latest version")
-            return
+            return False
         self.download_zip()
         self.extract_zip()
         self.copy()
         self.clean()
         self.finish()
+        return True
 
     def finish(self):
         reply = QMessageBox.question(None,'Update information',
