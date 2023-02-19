@@ -21,17 +21,14 @@ path_version_file = os.path.join(path_app, "VERSION")
 def current_version():
     with open(path_version_file, "r") as f:
         line = f.readline()
-    return line
+    return list(map(int, line.split(".")))
 
 def latest_version():
     file = request.urlopen(version_file_url)
     lines = ""
     for line in file:
         lines += line.decode("utf-8")
-    return lines
-
-def is_nochange():
-    return current_version() == latest_version()
+    return list(map(int, lines.split(".")))
 
 def download_zip():
     with request.urlopen(zip_url) as df:
@@ -53,7 +50,12 @@ def clean():
     shutil.rmtree(path_extracted)
 
 def update():
-    if is_nochange():
+    cv = current_version()
+    lv = latest_version()
+    if lv[1] != cv[1]:
+        print("Major update was released.\nPlease visit the official cite.")
+        return
+    if lv[2] == cv[2]:
         print("latest version")
         return
     download_zip()
