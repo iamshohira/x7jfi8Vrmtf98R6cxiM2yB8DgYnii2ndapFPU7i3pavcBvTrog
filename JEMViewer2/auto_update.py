@@ -57,7 +57,7 @@ def update():
         print("Major update was released.\nPlease visit the official cite.")
         return
     if lv[2] == cv[2]:
-        print(f"latest version: {'.'.join(cv)}")
+        print(f"latest version")
         return
     download_zip()
     extract_zip()
