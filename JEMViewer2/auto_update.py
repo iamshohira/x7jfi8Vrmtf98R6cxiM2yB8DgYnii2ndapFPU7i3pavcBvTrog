@@ -5,7 +5,7 @@ from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 
-class AutoUpdater:
+class AutoUpdater(QObject):
     # git url
     version_file_url = "https://raw.githubusercontent.com/iamshohira/x7jfi8Vrmtf98R6cxiM2yB8DgYnii2ndapFPU7i3pavcBvTrog/master/VERSION"
     zip_url = "https://github.com/iamshohira/x7jfi8Vrmtf98R6cxiM2yB8DgYnii2ndapFPU7i3pavcBvTrog/archive/refs/heads/master.zip"
@@ -23,6 +23,7 @@ class AutoUpdater:
     path_git = os.path.join(path_app, ".git")
 
     def __init__(self):
+        super().__init__()
         self.update()
 
     def current_version(self):
