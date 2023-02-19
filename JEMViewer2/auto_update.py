@@ -17,6 +17,7 @@ path_app = os.path.dirname(path_JEM)
 path_zip = os.path.join(path_app, zipname)
 path_extracted = os.path.join(path_app, extractname)
 path_version_file = os.path.join(path_app, "VERSION")
+path_git = os.path.join(path_app, ".git")
 
 def current_version():
     with open(path_version_file, "r") as f:
@@ -51,6 +52,9 @@ def clean():
     shutil.rmtree(path_extracted)
 
 def update():
+    if os.path.exists(path_git):
+        print("master files")
+        return
     cv = current_version()
     lv = latest_version()
     if lv[1] != cv[1]:
