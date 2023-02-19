@@ -23,7 +23,14 @@ class AutoUpdater:
     path_git = os.path.join(path_app, ".git")
 
     def __init__(self):
-        pass
+        self.header = "\nJEMViewer 2\n"
+        self.can_update = False
+        self.debug = False
+        try:
+            self.check_update()
+        except:
+            self.header += "Network error\n"
+            self.header += "Please check your network connection.\n\n"
 
     def current_version(self):
         with open(self.path_version_file, "r") as f:
@@ -59,24 +66,29 @@ class AutoUpdater:
         os.remove(self.path_zip)
         shutil.rmtree(self.path_extracted)
 
-    def update(self):
+    def check_update(self):
         if os.path.exists(self.path_git):
-            print("master files")
-            return False
+            self.header += "\nThis is the master files.\nEnter debug mode.\n"
+            self.debug = True
         cv = self.current_version()
         lv = self.latest_version()
         if lv[1] != cv[1]:
-            print("Major update was released.\nPlease visit the official cite.")
-            return False
+            self.header += "\nA major update has been released.\nPlease visit the official website.\n\n"
+            return
         if lv[2] == cv[2]:
-            print(f"latest version")
-            return False
-        self.download_zip()
-        self.extract_zip()
-        self.copy()
-        self.clean()
-        self.finish()
-        return True
+            self.header += f"\nVersion {self.cv} (latest)\n\n"
+            return
+        self.can_update = True
+
+    def update(self):
+        if self.can_update:
+            if not self.debug:
+                self.download_zip()
+                self.extract_zip()
+                self.copy()
+                self.clean()
+            self.finish()
+        return self.can_update
 
     def finish(self):
         reply = QMessageBox.question(None,'Update information',

@@ -21,6 +21,7 @@ from JEMViewer2.addon_installer import AddonInstaller
 from JEMViewer2.axeslinestool import AxesTool, LinesTool
 from JEMViewer2.update_checker import UpdateChecker
 from JEMViewer2.auto_update import AutoUpdater
+import time
 
 if os.name == "nt": #windows
     import PyQt6
@@ -61,11 +62,9 @@ class MainWindow(QMainWindow):
         self.filepath = filepath
         # self.update_checker = UpdateChecker()
         self.auto_updater = AutoUpdater()
-        if self.auto_updater.update():
-            self.close_(force=True)
         if filepath != None:
             matplotlib.rcParams['savefig.directory'] = (os.path.dirname(filepath))
-        self.ipython_w = IPythonWidget("")
+        self.ipython_w = IPythonWidget(self.auto_updater.header)
         self.ns = self.ipython_w.ns
         self.figure_widgets = []
         self.figs = []
@@ -79,6 +78,14 @@ class MainWindow(QMainWindow):
         self._create_menubar()
         self.setAcceptDrops(True)
         self.initialize()
+        self.timer_for_update = QTimer(self)
+        self.timer_for_update.timeout.connect(self.do_update)
+        self.timer_for_update.start(1000)
+
+    def do_update(self):
+        if self.auto_updater.update():
+            self.close_(True)
+        self.timer_for_update.stop()
 
     def print_log(self,item):
         self.ipython_w.clearPrompt()
