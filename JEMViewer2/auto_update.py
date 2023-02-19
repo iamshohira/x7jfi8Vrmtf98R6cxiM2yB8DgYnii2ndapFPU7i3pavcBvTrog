@@ -1,0 +1,61 @@
+from urllib import request
+from zipfile import ZipFile
+import shutil, os
+
+# git url
+version_file_url = "https://raw.githubusercontent.com/iamshohira/x7jfi8Vrmtf98R6cxiM2yB8DgYnii2ndapFPU7i3pavcBvTrog/master/VERSION"
+zip_url = "https://github.com/iamshohira/x7jfi8Vrmtf98R6cxiM2yB8DgYnii2ndapFPU7i3pavcBvTrog/archive/refs/heads/master.zip"
+extractname = "x7jfi8Vrmtf98R6cxiM2yB8DgYnii2ndapFPU7i3pavcBvTrog-master"
+zipname = "dl.zip"
+
+# path setting
+# app - JEMViewer2 - auto_update.py
+#     L VERSION
+
+path_JEM = os.path.dirname(__file__)
+path_app = os.path.dirname(path_JEM)
+path_zip = os.path.join(path_app, zipname)
+path_extracted = os.path.join(path_app, extractname)
+path_version_file = os.path.join(path_app, "VERSION")
+
+def current_version():
+    with open(path_version_file, "r") as f:
+        line = f.readline()
+    return line
+
+def latest_version():
+    file = request.urlopen(version_file_url)
+    lines = ""
+    for line in file:
+        lines += line.decode("utf-8")
+    return lines
+
+def is_nochange():
+    return current_version() == latest_version()
+
+def download_zip():
+    with request.urlopen(zip_url) as df:
+        data = df.read()
+        with open(path_zip, "wb") as f:
+            f.write(data)
+
+def extract_zip():
+    with ZipFile(path_zip) as zp:
+        zp.extractall(path_app)
+
+def copy():
+    shutil.rmtree(path_JEM)
+    shutil.move(os.path.join(path_extracted,"JEMViewer2"), path_JEM)
+    shutil.move(os.path.join(path_extracted,"VERSION"), path_app)
+
+def clean():
+    os.remove(path_zip)
+    shutil.rmtree(path_extracted)
+
+def update():
+    if is_nochange():
+        return
+    download_zip()
+    extract_zip()
+    copy()
+    clean()
