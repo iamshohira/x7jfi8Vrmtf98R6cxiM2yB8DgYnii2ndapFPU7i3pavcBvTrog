@@ -54,8 +54,13 @@ def clean():
 
 def update():
     if is_nochange():
+        print("latest version")
         return
     download_zip()
     extract_zip()
     copy()
     clean()
+    print("update complete")
+
+if __name__ == "__main__":
+    update()
