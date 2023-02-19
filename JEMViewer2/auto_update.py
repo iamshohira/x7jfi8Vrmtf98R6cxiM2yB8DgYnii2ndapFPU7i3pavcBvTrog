@@ -19,7 +19,7 @@ class AutoUpdater:
     path_app = os.path.dirname(path_JEM)
     path_zip = os.path.join(path_app, zipname)
     path_extracted = os.path.join(path_app, extractname)
-    path_version_file = os.path.join(path_app, "VERSION")
+    path_version_file = os.path.join(path_JEM, "VERSION")
     path_git = os.path.join(path_app, ".git")
 
     def __init__(self):
@@ -60,7 +60,6 @@ class AutoUpdater:
     def copy(self):
         shutil.rmtree(self.path_JEM)
         shutil.move(os.path.join(self.path_extracted,"JEMViewer2"), self.path_JEM)
-        shutil.move(os.path.join(self.path_extracted,"VERSION"), self.path_version_file)
 
     def clean(self):
         os.remove(self.path_zip)
