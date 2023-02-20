@@ -6,7 +6,9 @@ class Envs():
     RES_DIR = os.path.join(os.path.dirname(__file__),'resources')
     LOGO = os.path.join(os.path.join(RES_DIR,"JEMViewer2.png"))
     EXE_DIR = os.path.join(os.path.dirname(__file__))
-    ADDON_TEMPRATE_DIR = os.path.join(os.path.dirname(__file__),'addon')
+    ADDON_TEMPRATE_DIR = os.path.join(os.path.dirname(__file__),'home','addon')
+    SETTING_TEMPRATE_DIR = os.path.join(os.path.dirname(__file__),'home','setting')
+    TEMP_TEMPRATE_DIR = os.path.join(os.path.dirname(__file__),'home','temp')
     def __init__(self):
         pass
 
@@ -14,9 +16,11 @@ class Envs():
         if args.local:
             self.JEMDIR = os.path.join(os.path.dirname(__file__),"..","HOME")
         else:
-            self.JEMDIR = os.path.join(os.path.expanduser('~'),"JEMViewer")
+            self.JEMDIR = os.path.join(os.path.expanduser('~'),"JEMViewer2.3")
         self.ADDON_DIR = os.path.join(self.JEMDIR,'addon')
-        self.PLTPLOFILE = os.path.join(self.ADDON_DIR,"default.mplstyle")
+        self.SETTING_DIR = os.path.join(self.JEMDIR,'setting')
+        self.TEMP_DIR = os.path.join(self.JEMDIR,'temp')
+        self.PLTPLOFILE = os.path.join(self.SETTING_DIR,"default.mplstyle")
         if os.name == "nt":
             self.RUN = "start"
         else:
