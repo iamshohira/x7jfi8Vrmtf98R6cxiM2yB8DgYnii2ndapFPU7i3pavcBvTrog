@@ -8,7 +8,6 @@ class Envs():
     EXE_DIR = os.path.join(os.path.dirname(__file__))
     ADDON_TEMPRATE_DIR = os.path.join(os.path.dirname(__file__),'home','addon')
     SETTING_TEMPRATE_DIR = os.path.join(os.path.dirname(__file__),'home','setting')
-    TEMP_TEMPRATE_DIR = os.path.join(os.path.dirname(__file__),'home','temp')
     def __init__(self):
         pass
 

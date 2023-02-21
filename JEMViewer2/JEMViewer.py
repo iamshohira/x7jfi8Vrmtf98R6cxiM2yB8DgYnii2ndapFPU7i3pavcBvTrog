@@ -554,12 +554,11 @@ def get_app_qt6(*args, **kwargs):
 def main():
     filename = args.filename
     os.makedirs(envs.JEMDIR, exist_ok=True)
+    os.makedirs(envs.TEMP_DIR, exist_ok=True)
     if not os.path.exists(envs.ADDON_DIR):
         shutil.copytree(envs.ADDON_TEMPRATE_DIR, envs.ADDON_DIR)
     if not os.path.exists(envs.SETTING_DIR):
         shutil.copytree(envs.SETTING_TEMPRATE_DIR, envs.SETTING_DIR)
-    if not os.path.exists(envs.TEMP_DIR):
-        shutil.copytree(envs.TEMP_TEMPRATE_DIR, envs.TEMP_DIR)
     plt.style.use(envs.PLTPLOFILE)
 
     while True:
