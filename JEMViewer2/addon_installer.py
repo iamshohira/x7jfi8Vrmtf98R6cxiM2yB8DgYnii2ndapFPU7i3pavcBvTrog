@@ -5,28 +5,19 @@ import pickle
 import subprocess
 
 class AddonInstaller:
-    def __init__(self, addon_dir):
+    def __init__(self, addon_dir, notion_handler):
         self.addon_dir = addon_dir
+        self.notion_handler = notion_handler
         self.addons = None
         self.token_file = os.path.join(self.addon_dir,"notion_token")
 
-    def activate(self, tokens):
-        token, db_id = tokens.split(";")
-        access_token = "secret_" + token
-        db_id = db_id
-        with open(self.token_file,"wb") as f:
-            pickle.dump([access_token,db_id],f)
-
     def load_addon(self):
-        if os.path.exists(self.token_file):
-            with open(self.token_file,"rb") as f:
-                access_token, db_id = pickle.load(f)
-        else:
-            print("You need to activate addon_store first.\nPlease check the manual site.")
+        if not self.notion_handler.ok:
+            print("You need to activate notion_handler first.\nPlease check the manual site.")
             return False
-        geturl = "https://api.notion.com/v1/databases/" + db_id + "/query" 
+        geturl = "https://api.notion.com/v1/databases/" + self.notion_handler.data["addon_database_id"] + "/query" 
         headers = {
-            "Authorization": access_token,
+            "Authorization": self.notion_handler.access_token,
             "Content-Type": "application/json",
             "Notion-Version": "2021-08-16",
         }

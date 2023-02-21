@@ -19,9 +19,9 @@ from JEMViewer2.edit_widget import EditWidget, TempWidget
 from JEMViewer2.file_handler import savefile, envs
 from JEMViewer2.addon_installer import AddonInstaller
 from JEMViewer2.axeslinestool import AxesTool, LinesTool
-from JEMViewer2.update_checker import UpdateChecker
 from JEMViewer2.auto_update import AutoUpdater
-import time
+from JEMViewer2.notion_handler import NotionHandler
+import webbrowser
 
 if os.name == "nt": #windows
     import PyQt6
@@ -50,6 +50,7 @@ EXIT_CODE_REBOOT = -11231351
 class MainWindow(QMainWindow):
     def __init__(self, filepath, parent=None):
         super().__init__(parent)
+        self.notion_handler = NotionHandler(envs.SETTING_DIR)
         self.bar = self.statusBar()
         self.bar.setText = self.bar.showMessage
         self.mdiwindows = {}
@@ -60,8 +61,7 @@ class MainWindow(QMainWindow):
         if mode == floatstyle:
             self.setGeometry(300, 300, 800, 500)
         self.filepath = filepath
-        # self.update_checker = UpdateChecker()
-        self.auto_updater = AutoUpdater()
+        self.auto_updater = AutoUpdater(self.notion_handler)
         if filepath != None:
             matplotlib.rcParams['savefig.directory'] = (os.path.dirname(filepath))
         self.ipython_w = IPythonWidget(self.auto_updater.header)
@@ -168,6 +168,14 @@ class MainWindow(QMainWindow):
             sortmenu.addAction("Cascade")
             sortmenu.addAction("Tile")
             sortmenu.triggered[QAction].connect(self.mdiaction)
+        helpmenu = menubar.addMenu("&Link")
+        manual = QAction("&Manual", self)
+        manual.triggered.connect(self.open_manual)
+        helpmenu.addAction(manual)
+
+    def open_manual(self):
+        if self.notion_handler.ok:
+            webbrowser.open_new(self.notion_handler.data["manual_url"])
 
     def mdiaction(self, q):
         if q.text() == "Cascade":
@@ -462,17 +470,17 @@ class MainWindow(QMainWindow):
             "show_data": self.show_datatable,
             "add_figure": self.add_figure,
             "remove_figure": self.remove_figure,
-            "addon_store": AddonInstaller(envs.ADDON_DIR),
+            "addon_store": AddonInstaller(envs.ADDON_DIR, self.notion_handler),
             "set_lineproperties": self.linestool.set_properties,
             "move_line": self.linestool.move_line,
             "update_legend": self.linestool.update_legend,
             "set_axesproperties": self.axestool.set_properties,
-            # "JEMViewer": self.update_checker,
             "legend_autoupdate": self.linestool.legend_autoupdate,
             "add_dock": self.add_dock,
             "add_mdi": self.add_mdiwindow,
             "tiling_windows": self.tiling_windows,
             "cascading_windows": self.cascading_windows,
+            "notion_handler": self.notion_handler,
         }
         self.ns.update(DEFAULT_NAMESPACE)
         self.ns.update(namespace)

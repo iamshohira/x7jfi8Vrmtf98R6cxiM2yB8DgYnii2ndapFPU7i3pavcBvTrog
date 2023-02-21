@@ -4,6 +4,7 @@ import shutil, os
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
+import webbrowser
 
 class AutoUpdater:
     # git url
@@ -22,7 +23,8 @@ class AutoUpdater:
     path_version_file = os.path.join(path_JEM, "VERSION")
     path_git = os.path.join(path_app, ".git")
 
-    def __init__(self):
+    def __init__(self, notion_handler):
+        self.notion_handler = notion_handler
         self.header = "\nJEMViewer 2\n"
         self.can_update = False
         self.debug = False
@@ -90,11 +92,15 @@ class AutoUpdater:
         return self.can_update
 
     def finish(self):
-        reply = QMessageBox.question(None,'Update information',
-            f"Version {self.lv} has been downloaded. The software will now shut down to apply the changes. Would you like to view the update logs?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-        if reply == QMessageBox.Yes:
-            print("open sites")
+        if self.notion_handler.ok:
+            reply = QMessageBox.question(None,'Update information',
+                f"Version {self.lv} has been downloaded. The software will now shut down to apply the changes. Would you like to view the update logs?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if reply == QMessageBox.Yes:
+                webbrowser.open_new(self.notion_handler.data["updatelog_for2.3_url"])
+        else:
+            QMessageBox.information(None,'Update information',
+                f"Version {self.lv} has been downloaded. The software will now shut down to apply the changes.")
 
 if __name__ == "__main__":
     updater = AutoUpdater()
