@@ -47,7 +47,7 @@ class SaveFiles():
         with open(self.logfilename, 'w', encoding='utf-8') as f:
             pass
         
-    def save_command(self,command,fileparse=False,alias=True,exclude = ["edit()","reboot()","savefig"]):
+    def save_command(self,command,fileparse=False,alias=True,exclude = ["edit()","reboot()","savefig","reload_addon","addon_store"]):
         for e in exclude:
             if e in command:
                 return

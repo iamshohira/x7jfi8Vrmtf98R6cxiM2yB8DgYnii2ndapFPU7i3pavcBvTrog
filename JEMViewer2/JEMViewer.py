@@ -453,8 +453,13 @@ class MainWindow(QMainWindow):
             self.log_w.add_item(text)
             # self.figure_w.draw()
             savefile.save_customloader(lis)
-        except:
-            QMessageBox.critical(self, "Load error", "{} does not exist or there is something wrong with this function.")
+        except Exception as e:
+            message = f"type:{str(type(e))}\nargs:{str(e.args)}\n\n{str(e)}"
+            msgBox = QMessageBox(self)
+            msgBox.setIcon(QMessageBox.Icon.Critical)
+            msgBox.setText(f"Load Error\n{functionname} does not exist or there is something wrong with this function.")
+            msgBox.setDetailedText(message)
+            msgBox.exec()
         
     def _set_initial_namespace(self):
         namespace = {
@@ -481,6 +486,7 @@ class MainWindow(QMainWindow):
             "tiling_windows": self.tiling_windows,
             "cascading_windows": self.cascading_windows,
             "notion_handler": self.notion_handler,
+            "reload_addon": self._load_user_py,
         }
         self.ns.update(DEFAULT_NAMESPACE)
         self.ns.update(namespace)
@@ -521,6 +527,9 @@ class MainWindow(QMainWindow):
                     alias[f"fig{i}ax{j}l{k}"] = line
                     alias[f"fig{i}ax{j}l{k}x"] = line.get_xdata()
                     alias[f"fig{i}ax{j}l{k}y"] = line.get_ydata()
+                    alias[f"fal{i}{j}{k}"] = line
+                    alias[f"fal{i}{j}{k}x"] = line.get_xdata()
+                    alias[f"fal{i}{j}{k}y"] = line.get_ydata()
         if len(self.figs) > 0:
             alias["fig"] = self.figs[0]
             alias["axs"] = self.figs[0].axes
