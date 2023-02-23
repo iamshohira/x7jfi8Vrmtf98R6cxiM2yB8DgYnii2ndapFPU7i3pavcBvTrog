@@ -6,7 +6,11 @@ class NotionHandler:
     def __init__(self, setting_dir):
         self.token_file = os.path.join(setting_dir, "notion_token")
         self.load_token()
-        self.load_setting()
+        try:
+            self.load_setting()
+        except:
+            # network error
+            self.access_token = None
 
     def activate(self, tokens):
         token, db_id = tokens.split(";")
