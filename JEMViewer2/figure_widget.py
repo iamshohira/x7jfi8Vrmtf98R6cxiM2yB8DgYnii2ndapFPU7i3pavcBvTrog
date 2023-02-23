@@ -15,6 +15,7 @@ from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as Navigation
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
+from matplotlib.axes._axes import Axes
 matplotlib.use('QtAgg')
 
 from JEMViewer2.file_handler import savefile, envs
@@ -39,7 +40,7 @@ class MyFigureCanvas(FigureCanvas):
     line_pasted = pyqtSignal(str,list)
     table_required = pyqtSignal(str,str)
     custom_loader = pyqtSignal(list)
-    alias_pasted = pyqtSignal(str,int,int,bool)
+    alias_pasted = pyqtSignal(str,Axes,bool)
     remove_required = pyqtSignal(int)
     def __init__(self,parent,toolbar):
         self.fig = Figure(dpi=screen_dpi)
@@ -164,8 +165,7 @@ class MyFigureCanvas(FigureCanvas):
         return super().focusInEvent(a0)
 
     def _move_plot(self, alias, ax, mod):
-        ax_id = self.fig.axes.index(ax)
-        self.alias_pasted.emit(alias, self.fig_id, ax_id, mod.name == 'ControlModifier')
+        self.alias_pasted.emit(alias, ax, mod.name == 'ControlModifier')
 
     def close_(self):
         self.close_from_cui = True

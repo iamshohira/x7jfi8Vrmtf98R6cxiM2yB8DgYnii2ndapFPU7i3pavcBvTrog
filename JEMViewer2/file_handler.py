@@ -1,6 +1,20 @@
 import random, pickle
 import sys, os, string, shutil
 import re, pathlib
+import functools
+from matplotlib.lines import Line2D
+from matplotlib.axes._axes import Axes
+from matplotlib.figure import Figure
+
+exclude_command_list = [
+    "edit()",
+    "reboot()",
+    "savefig",
+    "reload_addon",
+    "addon_store",
+    "set_lineproperties",
+    "set_axesproperties",
+    "move_line"]
 
 class Envs():
     RES_DIR = os.path.join(os.path.dirname(__file__),'resources')
@@ -31,9 +45,53 @@ class SaveFiles():
     def __init__(self):
         pass
 
-    def initialize(self,home_dir):
+    def mpl_to_dict(self, object):
+        id = {}
+        typ = type(object)
+        if typ == Figure:
+            id["figs"] = self.figs.index(object)
+        elif typ == Axes:
+            id["figs"] = self.figs.index(object.figure)
+            id["axes"] = self.figs[id["figs"]].axes.index(object)
+        elif typ == Line2D:
+            id["figs"] = self.figs.index(object.axes.figure)
+            id["axes"] = self.figs[id["figs"]].axes.index(object.axes)
+            id["lines"] = self.figs[id["figs"]].axes[id["axes"]].lines.index(object)
+        return id
+
+    def dict_to_mpl(self, dict):
+        object = self.figs[dict["figs"]]
+        if "axes" in dict.keys():
+            object = object.axes[dict["axes"]]
+        if "lines" in dict.keys():
+            object = object.lines[dict["lines"]]
+        return object
+
+    def save_gui(self,f):
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            str_args = []
+            for arg in args[1:]: # eliminate self
+                if type(arg) in [Figure, Axes, Line2D]:
+                    id = self.mpl_to_dict(arg)
+                    str_args.append(str(id))
+                else:
+                    str_args.append(str(arg))
+            for k, v in kwargs.items():
+                str_args.append(f"{str(k)} = {str(v)}")
+            command = f"{f.__name__}({','.join(str_args)})"
+            self.save_commandline(command)
+            return f(*args, **kwargs)
+        return wrapper
+
+    def save_commandline(self, command):
+        with open(self.logfilename, "a", encoding='utf-8') as f:
+            print(command, file=f)
+
+    def initialize(self,home_dir,figs):
         self.make_tmpdir(home_dir)
         self.make_commandfile()
+        self.figs = figs
 
     def make_tmpdir(self,home_dir):
         self.dirname = os.path.join(home_dir,self.randomname(10))
@@ -47,7 +105,7 @@ class SaveFiles():
         with open(self.logfilename, 'w', encoding='utf-8') as f:
             pass
         
-    def save_command(self,command,fileparse=False,alias=True,exclude = ["edit()","reboot()","savefig","reload_addon","addon_store"]):
+    def save_command(self,command,fileparse=False,alias=True,exclude = exclude_command_list):
         for e in exclude:
             if e in command:
                 return
@@ -69,29 +127,26 @@ class SaveFiles():
                     os.makedirs(os.path.dirname(savedname),exist_ok=True)
                     shutil.copytree(filename, savedname)
                     command = command.replace('"{}"'.format(filename,),"os.path.join(savedir,\"{}\")".format(self.splittedfile(filename),))
-        with open(self.logfilename,'a', encoding='utf-8') as f:
-            print(command,file=f)
-            if alias:
-                print("update_alias()",file=f)
+        self.save_commandline(command)
+        if alias:
+            self.save_commandline("update_alias()")
 
     def save_npdata(self,new_name,data):
         pickle.dump(data,open(os.path.join(self.dirname,new_name),'wb'))
-        with open(self.logfilename,'a') as f:
-            print("{} = pickle.load(open(os.path.join(savedir,\"{}\"),\"rb\"))".format(new_name,new_name),file=f)
-            print("justnow = {}".format(new_name,),file=f)
-            print("update_alias()",file=f)
+        self.save_commandline(f"{new_name} = pickle.load(open(os.path.join(savedir,\"{new_name}\"),\"rb\"))")
+        self.save_commandline(f"justnow = {new_name}")
+        self.save_commandline("update_alias()")
 
     def save_plot(self, new_name, figaxid, data, label):
         pickle.dump(data,open(os.path.join(self.dirname,new_name),'wb'))
-        with open(self.logfilename,'a') as f:
-            print("_ = pickle.load(open(os.path.join(savedir,\"{}\"),\"rb\"))".format(new_name,),file=f)
-            print("lines = []",file=f)            
-            print("for i in range(1,len(_)):",file=f)
-            print(f"    line, = figs[{figaxid['figs']}].axes[{figaxid['axes']}].plot(_[0],_[i],label=\"{label}\")",file=f)
-            print("    lines.append(line)",file=f)
-            print("{} = lines if len(lines) > 1 else lines[0]".format(new_name,),file=f)
-            print("justnow = {}".format(new_name,),file=f)
-            print("update_alias()",file=f)
+        self.save_commandline(f"_ = pickle.load(open(os.path.join(savedir,\"{new_name}\"),\"rb\"))")
+        self.save_commandline("lines = []")            
+        self.save_commandline("for i in range(1,len(_)):")
+        self.save_commandline(f"    line, = figs[{figaxid['figs']}].axes[{figaxid['axes']}].plot(_[0],_[i],label=\"{label}\")")
+        self.save_commandline("    lines.append(line)")
+        self.save_commandline(f"{new_name} = lines if len(lines) > 1 else lines[0]")
+        self.save_commandline(f"justnow = {new_name}")
+        self.save_commandline("update_alias()")
 
     def save_customloader(self,lis):
         functionname = lis[0]
@@ -105,10 +160,9 @@ class SaveFiles():
             shutil.copy(filename,savedname)
         if os.path.isdir(filename):
             shutil.copytree(filename,savedname)
-        with open(self.logfilename,'a', encoding='utf-8') as f:
-            print(f"{newname} = {functionname}(os.path.join(savedir,\"{self.splittedfile(filename)}\"),figs[{figaxid['figs']}].axes[{figaxid['axes']}])",file=f)
-            print("justnow = {}".format(newname,),file=f)
-            print("update_alias()",file=f)
+        self.save_commandline(f"{newname} = {functionname}(os.path.join(savedir,\"{self.splittedfile(filename)}\"),figs[{figaxid['figs']}].axes[{figaxid['axes']}])")
+        self.save_commandline(f"justnow = {newname}")
+        self.save_commandline("update_alias()")
 
     def splittedfile(self, filename):
         fp = os.path.splitdrive(filename)[1]
@@ -149,39 +203,17 @@ class SaveFiles():
             log = pickle.load(f)
         return log
 
-    def save_axesproperties(self, values):
-        with open(self.logfilename,'a', encoding='utf-8') as f:
-            print(f"set_axesproperties({values})",file=f)
-
-    def save_lineproperties(self, line_id, properties):
-        with open(self.logfilename,'a', encoding='utf-8') as f:
-            print(f"set_lineproperties({line_id},{properties})",file=f)
-            print(f"update_legend()",file=f)
-
-    def save_linemove(self, old_id, new_id, delete=True):
-        with open(self.logfilename, "a", encoding='utf-8') as f:
-            print(f"move_line({old_id},{new_id},{delete})",file=f)
-            print(f"update_legend()",file=f)
-
-    def save_removeline(self, id_):
-        with open(self.logfilename, "a", encoding='utf-8') as f:
-            print(f"figs[{id_['figs']}].axes[{id_['axes']}].lines[{id_['lines']}].remove()",file=f)
-            print(f"update_legend()",file=f)
-
     def save_removefigure(self, id_):
-        with open(self.logfilename, "a", encoding='utf-8') as f:
-            print(f"remove_figure({id_})",file=f)
+        self.save_commandline(f"remove_figure({id_})")
 
     def save_addfigure(self):
-        with open(self.logfilename, "a", encoding='utf-8') as f:
-            print("add_figure()",file=f)
+        self.save_commandline("add_figure()")
 
     def save_subplotsparam(self, is_tight, fig_id, parameters):
-        with open(self.logfilename, "a", encoding='utf-8') as f:
-            print(f"figs[{fig_id}].set_tight_layout({is_tight})",file=f)
-            if is_tight:
-                print(f"figs[{fig_id}].tight_layout()",file=f)
-            else:
-                print(f"figs[{fig_id}].subplots_adjust({parameters})",file=f)
+        self.save_commandline(f"figs[{fig_id}].set_tight_layout({is_tight})")
+        if is_tight:
+            self.save_commandline(f"figs[{fig_id}].tight_layout()")
+        else:
+            self.save_commandline(f"figs[{fig_id}].subplots_adjust({parameters})")
 
 savefile = SaveFiles()

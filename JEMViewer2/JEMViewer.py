@@ -476,10 +476,10 @@ class MainWindow(QMainWindow):
             "add_figure": self.add_figure,
             "remove_figure": self.remove_figure,
             "addon_store": AddonInstaller(envs.ADDON_DIR, self.notion_handler),
-            "set_lineproperties": self.linestool.set_properties,
+            "set_lineproperties": self.linestool.set_lineproperties,
             "move_line": self.linestool.move_line,
             "update_legend": self.linestool.update_legend,
-            "set_axesproperties": self.axestool.set_properties,
+            "set_axesproperties": self.axestool.set_axesproperties,
             "legend_autoupdate": self.linestool.legend_autoupdate,
             "add_dock": self.add_dock,
             "add_mdi": self.add_mdiwindow,
@@ -501,7 +501,7 @@ class MainWindow(QMainWindow):
         savefile.save_command(lastcommand,fileparse)
 
     def initialize(self):
-        savefile.initialize(envs.TEMP_DIR)
+        savefile.initialize(envs.TEMP_DIR, self.figs)
         self._set_initial_namespace()
         self.update_alias() 
         self._load_helper()

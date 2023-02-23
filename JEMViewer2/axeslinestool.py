@@ -7,6 +7,7 @@ import matplotlib.backends.qt_editor.figureoptions as figopt
 from matplotlib import colors as mcolors
 from JEMViewer2.file_handler import savefile
 
+
 class IntEdit(QLineEdit):
     def __init__(self, parent=None, initial=None):
         super().__init__(parent)
@@ -321,30 +322,13 @@ class LinesTool(QTableWidget):
         irow = self.sender().row
         values = {h:self.cellWidget(irow,icol).value() for icol, h in enumerate(self.header)}
         line = self.lines[irow]
-        id_ = self.get_id(line)
-        # if old_id["figs"] == values["figs"] and old_id["axes"] == values["axes"]:
-        self.set_properties(id_, values)
-        self.update_legend()
-        savefile.save_lineproperties(id_, values)
-        self.figs[id_["figs"]].canvas.draw()
-        # else:
-        #     new_id = {k:values[k] for k in ["figs","axes"]}
-        #     if old_id["figs"] != values["figs"]: new_id["axes"] = 0
-        #     self.move_line(old_id, new_id)
-        #     savefile.save_linemove(old_id, new_id)
-        #     self.figs[old_id["figs"]].canvas.draw()
-        #     self.figs[new_id["figs"]].canvas.draw()
-        #     self.load_lines()
+        self.set_lineproperties(line, values)
+        line.axes.figure.canvas.draw()
 
-    def get_id(self, line):
-        id = {}
-        id["figs"] = self.figs.index(line.axes.figure)
-        id["axes"] = self.figs[id["figs"]].axes.index(line.axes)
-        id["lines"] = self.figs[id["figs"]].axes[id["axes"]].lines.index(line)
-        return id        
-
-    def set_properties(self, line_id, values):
-        line = self.figs[line_id["figs"]].axes[line_id["axes"]].lines[line_id["lines"]]
+    @savefile.save_gui
+    def set_lineproperties(self, line, values):
+        if type(line) == dict:
+            line = savefile.dict_to_mpl(line)
         line.set_visible(values["show"])
         line.set_zorder(values["zorder"])
         line.set_label(values["label"])
@@ -357,6 +341,7 @@ class LinesTool(QTableWidget):
         line.set_markerfacecolor(values["marker color"])
         line.set_markeredgewidth(values["edge"])
         line.set_markeredgecolor(values["edge color"])
+        self.update_legend()
 
     def update_legend(self):
         if not self._legend_autoupdate: return
@@ -370,24 +355,30 @@ class LinesTool(QTableWidget):
                 nl._set_loc(loc)
                 nl.set_draggable(drag)
 
-    def move_line(self, old_id, new_id, delete=True):
-        line = self.figs[old_id["figs"]].axes[old_id["axes"]].lines[old_id["lines"]]
-        new_line, = self.figs[new_id["figs"]].axes[new_id["axes"]].plot(*line.get_data())
-        new_line.set_visible(line.get_visible())
-        new_line.set_zorder(line.get_zorder())
-        new_line.set_label(line.get_label())
-        new_line.set_gid(line.get_gid())
-        new_line.set_ls(line.get_ls())
-        new_line.set_lw(line.get_lw())
-        new_line.set_color(line.get_color())
-        new_line.set_marker(line.get_marker())
-        new_line.set_markersize(line.get_markersize())
-        new_line.set_markerfacecolor(line.get_markerfacecolor())
-        new_line.set_markeredgewidth(line.get_markeredgewidth())
-        new_line.set_markeredgecolor(line.get_markeredgecolor())
+    @savefile.save_gui
+    def move_line(self, old_line, new_axes, delete=True):
+        if type(old_line) == dict:
+            old_line = savefile.dict_to_mpl(old_line)
+        if new_axes != None:
+            if type(new_axes) == dict:
+                new_axes = savefile.dict_to_mpl(new_axes)
+            new_line, = new_axes.plot(*old_line.get_data())
+            new_line.set_visible(old_line.get_visible())
+            new_line.set_zorder(old_line.get_zorder())
+            new_line.set_label(old_line.get_label())
+            new_line.set_gid(old_line.get_gid())
+            new_line.set_ls(old_line.get_ls())
+            new_line.set_lw(old_line.get_lw())
+            new_line.set_color(old_line.get_color())
+            new_line.set_marker(old_line.get_marker())
+            new_line.set_markersize(old_line.get_markersize())
+            new_line.set_markerfacecolor(old_line.get_markerfacecolor())
+            new_line.set_markeredgewidth(old_line.get_markeredgewidth())
+            new_line.set_markeredgecolor(old_line.get_markeredgecolor())
         if delete:
-            line.remove()
+            old_line.remove()
         self.line_moved.emit()
+        self.update_legend()
 
     def contextmenu(self,point):
         menu = QMenu(self)
@@ -400,39 +391,25 @@ class LinesTool(QTableWidget):
     def duplicate(self):
         irow = self.currentRow()
         line = self.lines[irow]
-        old_id = self.get_id(line)
-        self.move_line(old_id, old_id, delete=False)
+        self.move_line(line, line.axes, delete=False)
         self.update_legend()
-        savefile.save_linemove(old_id, old_id, delete=False)
-        self.figs[old_id["figs"]].canvas.draw()
+        line.axes.figure.canvas.draw()
         self.load_lines()
 
     def delete(self):
         irow = self.currentRow()
         line = self.lines[irow]
-        old_id = self.get_id(line)
-        line.remove()
-        self.update_legend()
-        savefile.save_removeline(old_id)
-        self.figs[old_id["figs"]].canvas.draw()
+        fig = line.axes.figure
+        self.move_line(line, None, delete=True)
+        fig.canvas.draw()
         self.load_lines()
 
-    def move_by_drag(self, alias, fig_id, ax_id, is_copy):
+    def move_by_drag(self, alias, ax, is_copy):
         s = re.split("fig|ax|l", alias)
-        old_id = {
-            "figs": int(s[1]),
-            "axes": int(s[2]),
-            "lines": int(s[3]),
-        }
-        new_id = {
-            "figs": fig_id,
-            "axes": ax_id,
-        }
-        self.move_line(old_id, new_id, delete = not is_copy)
-        self.update_legend()
-        savefile.save_linemove(old_id, new_id, delete = not is_copy)
-        self.figs[old_id["figs"]].canvas.draw()
-        self.figs[new_id["figs"]].canvas.draw()
+        line = self.figs[int(s[1])].axes[int(s[2])].lines[int(s[3])]
+        self.move_line(line, ax, delete = not is_copy)
+        self.figs[int(s[1])].canvas.draw()
+        ax.figure.canvas.draw()
         self.load_lines()
 
     def on_pick(self, e):
@@ -564,10 +541,9 @@ class AxesTool(QTableWidget):
             values["xmax"] = 1.0
         if values["ymax"] <= 0 and values["yscale"] == "log":
             values["ymax"] = 1.0            
-        self.set_properties(values)
         try:
+            self.set_axesproperties(values)
             self.figs[values["figs"]].canvas.draw()
-            savefile.save_axesproperties(values)
         except:
             pass
 
@@ -575,14 +551,8 @@ class AxesTool(QTableWidget):
         self.load_axes()
         super().show()
 
-    # def get_id(self, line):
-    #     id = {}
-    #     id["figs"] = self.figs.index(line.axes.figure)
-    #     id["axes"] = self.figs[id["figs"]].axes.index(line.axes)
-    #     id["lines"] = self.figs[id["figs"]].axes[id["axes"]].lines.index(line)
-    #     return id        
-
-    def set_properties(self, values):
+    @savefile.save_gui
+    def set_axesproperties(self, values):
         ax = self.figs[values["figs"]].axes[values["axes"]]
         ax.set_title(values["title"])
         ax.set_xlabel(values["xlabel"])
@@ -591,21 +561,3 @@ class AxesTool(QTableWidget):
         ax.set_ylabel(values["ylabel"])
         ax.set_ylim((values["ymin"],values["ymax"]))
         ax.set_yscale(values["yscale"])
-
-    # @classmethod
-    # def move_line(cls, figs, old_id, new_id):
-    #     line = figs[old_id["figs"]].axes[old_id["axes"]].lines[old_id["lines"]]
-    #     new_line, = figs[new_id["figs"]].axes[new_id["axes"]].plot(*line.get_data())
-    #     new_line.set_visible(line.get_visible())
-    #     new_line.set_zorder(line.get_zorder())
-    #     new_line.set_label(line.get_label())
-    #     new_line.set_gid(line.get_gid())
-    #     new_line.set_ls(line.get_ls())
-    #     new_line.set_lw(line.get_lw())
-    #     new_line.set_color(line.get_color())
-    #     new_line.set_marker(line.get_marker())
-    #     new_line.set_markersize(line.get_markersize())
-    #     new_line.set_markerfacecolor(line.get_markerfacecolor())
-    #     new_line.set_markeredgewidth(line.get_markeredgewidth())
-    #     new_line.set_markeredgecolor(line.get_markeredgecolor())
-    #     line.remove()
