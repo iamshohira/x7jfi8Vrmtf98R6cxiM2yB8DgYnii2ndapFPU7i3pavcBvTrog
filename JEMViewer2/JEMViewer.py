@@ -48,7 +48,7 @@ DEFAULT_NAMESPACE = {
 EXIT_CODE_REBOOT = -11231351
 
 class MainWindow(QMainWindow):
-    def __init__(self, filepath, parent=None):
+    def __init__(self, filepath, call_as_library, parent=None):
         super().__init__(parent)
         self.notion_handler = NotionHandler(envs.SETTING_DIR)
         self.bar = self.statusBar()
@@ -61,10 +61,16 @@ class MainWindow(QMainWindow):
         if mode == floatstyle:
             self.setGeometry(300, 300, 800, 500)
         self.filepath = filepath
-        self.auto_updater = AutoUpdater(self.notion_handler)
         if filepath != None:
             matplotlib.rcParams['savefig.directory'] = (os.path.dirname(filepath))
-        self.ipython_w = IPythonWidget(self.auto_updater.header)
+        if not call_as_library:
+            self.auto_updater = AutoUpdater(self.notion_handler)
+            self.ipython_w = IPythonWidget(self.auto_updater.header)
+            self.timer_for_update = QTimer(self)
+            self.timer_for_update.timeout.connect(self.do_update)
+            self.timer_for_update.start(1000)
+        else:
+            self.ipython_w = IPythonWidget("Library")
         self.ns = self.ipython_w.ns
         self.figure_widgets = []
         self.figs = []
@@ -78,9 +84,6 @@ class MainWindow(QMainWindow):
         self._create_menubar()
         self.setAcceptDrops(True)
         self.initialize()
-        self.timer_for_update = QTimer(self)
-        self.timer_for_update.timeout.connect(self.do_update)
-        self.timer_for_update.start(1000)
 
     def do_update(self):
         if self.auto_updater.update():
@@ -560,7 +563,7 @@ def get_app_qt6(*args, **kwargs):
         app = QApplication(*args, **kwargs)
     return app
 
-def main():
+def main(call_as_library=False):
     filename = args.filename
     os.makedirs(envs.JEMDIR, exist_ok=True)
     os.makedirs(envs.TEMP_DIR, exist_ok=True)
@@ -573,7 +576,7 @@ def main():
     while True:
         app = get_app_qt6()
         app.setWindowIcon(QIcon(envs.LOGO))
-        form = MainWindow(filename)
+        form = MainWindow(filename, call_as_library)
         form.show()
         form.raise_()
         exit_code = app.exec_()
