@@ -1,4 +1,5 @@
 import setuptools
+from glob import glob
 
 setuptools.setup(
     name="JEMviewer2",
@@ -21,6 +22,9 @@ setuptools.setup(
     description="JEMViewer2",
     long_description="",
     packages=setuptools.find_packages(),
+    data_files=[
+        ('resources', glob('resources/*')),
+    ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
