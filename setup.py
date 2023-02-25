@@ -23,7 +23,7 @@ setuptools.setup(
     long_description="",
     packages=setuptools.find_packages(),
     data_files=[
-        ('resources', glob('resources/*')),
+        ('resources', glob('JEMViewer2/resources/*')),
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
