@@ -47,6 +47,8 @@ DEFAULT_NAMESPACE = {
 }
 
 EXIT_CODE_REBOOT = -11231351
+ipaexg = os.path.join(envs.RES_DIR, "ipaexg.ttf")
+ipaexm = os.path.join(envs.RES_DIR, "ipaexm.ttf")
 
 class MainWindow(QMainWindow):
     def __init__(self, filepath, call_as_library = False, call_from = None, parent=None):
@@ -68,12 +70,17 @@ class MainWindow(QMainWindow):
             matplotlib.rcParams['savefig.directory'] = (os.path.dirname(filepath))
         if not call_as_library:
             self.auto_updater = AutoUpdater(self.notion_handler)
+            if not self.auto_updater.can_update:
+                font_manager.fontManager.addfont(ipaexg)
+                font_manager.fontManager.addfont(ipaexm)
             self.ipython_w = IPythonWidget(self.auto_updater.header)
             self.timer_for_update = QTimer(self)
             self.timer_for_update.timeout.connect(self.do_update)
             self.timer_for_update.start(1000)
         else:
             self.ipython_w = IPythonWidget("JEMViewer2 as Python Library\n\n")
+            font_manager.fontManager.addfont(ipaexg)
+            font_manager.fontManager.addfont(ipaexm)
         self.ns = self.ipython_w.ns
         self.figure_widgets = []
         self.figs = []
@@ -507,11 +514,6 @@ class MainWindow(QMainWindow):
         savefile.save_command(lastcommand,fileparse)
 
     def initialize(self):
-        if not self.auto_updater.can_update:
-            ipaexg = os.path.join(envs.RES_DIR, "ipaexg.ttf")
-            ipaexm = os.path.join(envs.RES_DIR, "ipaexm.ttf")
-            font_manager.fontManager.addfont(ipaexg)
-            font_manager.fontManager.addfont(ipaexm)
         savefile.initialize(envs.TEMP_DIR, self.figs)
         self._set_initial_namespace()
         self.update_alias() 
