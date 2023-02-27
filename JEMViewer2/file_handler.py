@@ -3,8 +3,9 @@ import sys, os, string, shutil
 import re, pathlib
 import functools
 from matplotlib.lines import Line2D
-from matplotlib.axes._axes import Axes
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+import numpy as np
 
 exclude_command_list = [
     "edit()",
@@ -66,22 +67,35 @@ class SaveFiles():
         if "lines" in dict.keys():
             object = object.lines[dict["lines"]]
         return object
+    
+    def emulate_args(self, x):
+        typ = type(x)
+        if typ == str:
+            return f'"{x}"'
+        elif typ in [Figure, Axes, Line2D]:
+            id_dict = self.mpl_to_dict(x)
+            return str(id_dict)
+        elif typ == np.ndarray:
+            name = self.randomname(8)
+            self.save_npdata(name, x)
+            return name
+        else:
+            return str(x)
+    
+    def save_emulate_command(self, function_name, *args, **kwargs):
+        str_args = []
+        for arg in args:
+            str_args.append(self.emulate_args(arg))
+        for k, v in kwargs.items():
+            str_args.append(f"{k} = {self.emulate_args(v)}")
+        command = f"{function_name}({','.join(str_args)})"
+        self.save_commandline(command)
 
     def save_gui(self,f):
         @functools.wraps(f)
-        def wrapper(*args, **kwargs):
-            str_args = []
-            for arg in args[1:]: # eliminate self
-                if type(arg) in [Figure, Axes, Line2D]:
-                    id = self.mpl_to_dict(arg)
-                    str_args.append(str(id))
-                else:
-                    str_args.append(str(arg))
-            for k, v in kwargs.items():
-                str_args.append(f"{str(k)} = {str(v)}")
-            command = f"{f.__name__}({','.join(str_args)})"
-            self.save_commandline(command)
-            return f(*args, **kwargs)
+        def wrapper(self_, *args, **kwargs): # eliminate self
+            self.save_emulate_command(f.__name__, *args, **kwargs)
+            return f(self_, *args, **kwargs)
         return wrapper
 
     def save_commandline(self, command):

@@ -48,8 +48,10 @@ DEFAULT_NAMESPACE = {
 EXIT_CODE_REBOOT = -11231351
 
 class MainWindow(QMainWindow):
-    def __init__(self, filepath, call_as_library, parent=None):
+    def __init__(self, filepath, call_as_library = False, call_from = None, parent=None):
         super().__init__(parent)
+        self.call_as_library = call_as_library
+        self.call_from = call_from
         self.notion_handler = NotionHandler(envs.SETTING_DIR)
         self.bar = self.statusBar()
         self.bar.setText = self.bar.showMessage
@@ -70,7 +72,7 @@ class MainWindow(QMainWindow):
             self.timer_for_update.timeout.connect(self.do_update)
             self.timer_for_update.start(1000)
         else:
-            self.ipython_w = IPythonWidget("Library")
+            self.ipython_w = IPythonWidget("JEMViewer2 as Python Library\n\n")
         self.ns = self.ipython_w.ns
         self.figure_widgets = []
         self.figs = []
@@ -305,7 +307,7 @@ class MainWindow(QMainWindow):
         self.ipython_w.command_finished.connect(self.update_alias)
 
     def add_figure(self):
-        figure_w = MyFigureCanvas(self, self.toolbar)
+        figure_w = MyFigureCanvas(self, self.toolbar, self.call_as_library, self.call_from)
         figure_w.set_window_title(id=len(self.figure_widgets), prefix=self.window_id)
         figure_w.nd_pasted.connect(self.append_ndarray)
         figure_w.line_pasted.connect(self.append_line2D)
@@ -563,7 +565,7 @@ def get_app_qt6(*args, **kwargs):
         app = QApplication(*args, **kwargs)
     return app
 
-def main(call_as_library=False):
+def main():
     filename = args.filename
     os.makedirs(envs.JEMDIR, exist_ok=True)
     os.makedirs(envs.TEMP_DIR, exist_ok=True)
@@ -576,7 +578,7 @@ def main(call_as_library=False):
     while True:
         app = get_app_qt6()
         app.setWindowIcon(QIcon(envs.LOGO))
-        form = MainWindow(filename, call_as_library)
+        form = MainWindow(filename)
         form.show()
         form.raise_()
         exit_code = app.exec_()

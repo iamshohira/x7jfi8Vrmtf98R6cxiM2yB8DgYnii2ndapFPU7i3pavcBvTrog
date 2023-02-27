@@ -15,11 +15,13 @@ from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as Navigation
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
-from matplotlib.axes._axes import Axes
+from matplotlib.axes import Axes
 matplotlib.use('QtAgg')
 
 from JEMViewer2.file_handler import savefile, envs
 from JEMViewer2.axeslinestool import BoolEdit, AliasButton
+
+from JEMViewer2.deco_figure import DecoFigure
 
 ipaexg = os.path.join(envs.RES_DIR, "ipaexg.ttf")
 ipaexm = os.path.join(envs.RES_DIR, "ipaexm.ttf")
@@ -42,8 +44,12 @@ class MyFigureCanvas(FigureCanvas):
     custom_loader = pyqtSignal(list)
     alias_pasted = pyqtSignal(str,Axes,bool)
     remove_required = pyqtSignal(int)
-    def __init__(self,parent,toolbar):
-        self.fig = Figure(dpi=screen_dpi)
+    def __init__(self,parent,toolbar,call_as_library, call_from):
+        if call_as_library:
+            self.fig = DecoFigure(call_from, dpi=screen_dpi)
+        else:
+            self.fig = Figure(dpi=screen_dpi)
+        self.call_as_library = call_as_library
         self.fig.add_subplot(111)
         super().__init__(self.fig)
         self.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
@@ -62,6 +68,8 @@ class MyFigureCanvas(FigureCanvas):
         if prefix != None:
             self.prefix = prefix
         self.fig_id = id
+        if self.call_as_library:
+            self.fig.set_id(id)
         self.setWindowTitle(f"{self.prefix} | Figure:{id}")
 
     def dragEnterEvent(self,event):

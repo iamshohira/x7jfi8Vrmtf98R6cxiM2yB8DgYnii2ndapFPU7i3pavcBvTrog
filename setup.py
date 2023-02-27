@@ -1,9 +1,12 @@
 import setuptools
 from glob import glob
 
+with open("JEMViewer2/VERSION", "r") as f:
+    version = f.readline()
+ 
 setuptools.setup(
     name="JEMviewer2",
-    version="2.3.3",
+    version=version,
     install_requires=[
         "matplotlib",
         "numpy",
