@@ -9,7 +9,6 @@ from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 
 import matplotlib
-from matplotlib import font_manager
 from matplotlib.backends.backend_qt import SubplotToolQt
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -22,11 +21,6 @@ from JEMViewer2.file_handler import savefile, envs
 from JEMViewer2.axeslinestool import BoolEdit, AliasButton
 
 from JEMViewer2.deco_figure import DecoFigure
-
-ipaexg = os.path.join(envs.RES_DIR, "ipaexg.ttf")
-ipaexm = os.path.join(envs.RES_DIR, "ipaexm.ttf")
-font_manager.fontManager.addfont(ipaexg)
-font_manager.fontManager.addfont(ipaexm)
 
 screen_dpi = 72
 

@@ -7,6 +7,7 @@ import shutil
 import argparse
 import graphlib
 import matplotlib
+from matplotlib import font_manager
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from PyQt6.QtCore import *
@@ -506,6 +507,11 @@ class MainWindow(QMainWindow):
         savefile.save_command(lastcommand,fileparse)
 
     def initialize(self):
+        if not self.auto_updater.can_update:
+            ipaexg = os.path.join(envs.RES_DIR, "ipaexg.ttf")
+            ipaexm = os.path.join(envs.RES_DIR, "ipaexm.ttf")
+            font_manager.fontManager.addfont(ipaexg)
+            font_manager.fontManager.addfont(ipaexm)
         savefile.initialize(envs.TEMP_DIR, self.figs)
         self._set_initial_namespace()
         self.update_alias() 
