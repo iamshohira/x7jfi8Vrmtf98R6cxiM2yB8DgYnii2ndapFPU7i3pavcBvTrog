@@ -13,9 +13,7 @@ exclude_command_list = [
     "savefig",
     "reload_addon",
     "addon_store",
-    "set_lineproperties",
-    "set_axesproperties",
-    "move_line"]
+    ]
 
 class Envs():
     RES_DIR = os.path.join(os.path.dirname(__file__),'resources')

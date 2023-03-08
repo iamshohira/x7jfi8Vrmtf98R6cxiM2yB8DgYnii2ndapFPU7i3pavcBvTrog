@@ -322,10 +322,14 @@ class LinesTool(QTableWidget):
         irow = self.sender().row
         values = {h:self.cellWidget(irow,icol).value() for icol, h in enumerate(self.header)}
         line = self.lines[irow]
-        self.set_lineproperties(line, values)
+        self.gui_call("set_lineproperties", line, values)
         line.axes.figure.canvas.draw()
 
-    @savefile.save_gui
+    def gui_call(self, function_name, *args, **kwargs):
+        f = getattr(self, function_name)
+        f(*args, **kwargs)
+        savefile.save_emulate_command(function_name, *args, **kwargs)
+        
     def set_lineproperties(self, line, values):
         if type(line) == dict:
             line = savefile.dict_to_mpl(line)
@@ -355,7 +359,6 @@ class LinesTool(QTableWidget):
                 nl._set_loc(loc)
                 nl.set_draggable(drag)
 
-    @savefile.save_gui
     def move_line(self, old_line, new_axes, delete=True):
         if type(old_line) == dict:
             old_line = savefile.dict_to_mpl(old_line)
@@ -391,7 +394,7 @@ class LinesTool(QTableWidget):
     def duplicate(self):
         irow = self.currentRow()
         line = self.lines[irow]
-        self.move_line(line, line.axes, delete=False)
+        self.gui_call("move_line", line, line.axes, delete=False)
         self.update_legend()
         line.axes.figure.canvas.draw()
         self.load_lines()
@@ -400,14 +403,14 @@ class LinesTool(QTableWidget):
         irow = self.currentRow()
         line = self.lines[irow]
         fig = line.axes.figure
-        self.move_line(line, None, delete=True)
+        self.gui_call("move_line", line, None, delete=True)
         fig.canvas.draw()
         self.load_lines()
 
     def move_by_drag(self, alias, ax, is_copy):
         s = re.split("fig|ax|l", alias)
         line = self.figs[int(s[1])].axes[int(s[2])].lines[int(s[3])]
-        self.move_line(line, ax, delete = not is_copy)
+        self.gui_call("move_line", line, ax, delete = not is_copy)
         self.figs[int(s[1])].canvas.draw()
         ax.figure.canvas.draw()
         self.load_lines()
@@ -542,7 +545,7 @@ class AxesTool(QTableWidget):
         if values["ymax"] <= 0 and values["yscale"] == "log":
             values["ymax"] = 1.0            
         try:
-            self.set_axesproperties(values)
+            self.gui_call("set_axesproperties", values)
             self.figs[values["figs"]].canvas.draw()
         except:
             pass
@@ -551,7 +554,11 @@ class AxesTool(QTableWidget):
         self.load_axes()
         super().show()
 
-    @savefile.save_gui
+    def gui_call(self, function_name, *args, **kwargs):
+        f = getattr(self, function_name)
+        f(*args, **kwargs)
+        savefile.save_emulate_command(function_name, *args, **kwargs)
+
     def set_axesproperties(self, values):
         ax = self.figs[values["figs"]].axes[values["axes"]]
         ax.set_title(values["title"])

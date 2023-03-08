@@ -473,6 +473,11 @@ class MainWindow(QMainWindow):
             msgBox.setText(f"Load Error\n{functionname} does not exist or there is something wrong with this function.")
             msgBox.setDetailedText(message)
             msgBox.exec()
+
+    def execom(self,command):
+        self.ipython_w.executeCommand(command)
+        savefile.save_command(command, alias=False, exclude=[])
+
         
     def _set_initial_namespace(self):
         namespace = {
@@ -500,6 +505,8 @@ class MainWindow(QMainWindow):
             "cascading_windows": self.cascading_windows,
             "notion_handler": self.notion_handler,
             "reload_addon": self._load_user_py,
+            "execom": self.execom,
+            "get_log": self.log_w.get,
         }
         self.ns.update(DEFAULT_NAMESPACE)
         self.ns.update(namespace)
