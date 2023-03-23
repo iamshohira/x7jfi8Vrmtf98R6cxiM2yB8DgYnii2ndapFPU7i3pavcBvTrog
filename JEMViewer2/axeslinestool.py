@@ -326,9 +326,9 @@ class LinesTool(QTableWidget):
         line.axes.figure.canvas.draw()
 
     def gui_call(self, function_name, *args, **kwargs):
+        savefile.save_emulate_command(function_name, *args, **kwargs)
         f = getattr(self, function_name)
         f(*args, **kwargs)
-        savefile.save_emulate_command(function_name, *args, **kwargs)
         
     def set_lineproperties(self, line, values):
         if type(line) == dict:
