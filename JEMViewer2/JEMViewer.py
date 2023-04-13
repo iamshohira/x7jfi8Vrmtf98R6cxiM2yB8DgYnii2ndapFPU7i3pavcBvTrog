@@ -477,7 +477,6 @@ class MainWindow(QMainWindow):
     def execom(self,command):
         self.ipython_w.executeCommand(command)
         savefile.save_command(command, alias=False, exclude=[])
-
         
     def _set_initial_namespace(self):
         namespace = {
@@ -507,6 +506,8 @@ class MainWindow(QMainWindow):
             "reload_addon": self._load_user_py,
             "execom": self.execom,
             "get_log": self.log_w.get,
+            "ipy": self.ipython_w,
+            "save_history": self.ipython_w.saveHistory,
         }
         self.ns.update(DEFAULT_NAMESPACE)
         self.ns.update(namespace)
@@ -540,6 +541,7 @@ class MainWindow(QMainWindow):
         for i, fig in enumerate(self.figs):
             alias[f"fig{i}"] = fig
             alias[f"fig{i}axs"] = fig.axes
+            alias[f"fig{i}ax"] = fig.axes[0]
             for j, ax in enumerate(fig.axes):
                 alias[f"fig{i}ax{j}"] = ax
                 alias[f"fig{i}ax{j}ls"] = ax.lines

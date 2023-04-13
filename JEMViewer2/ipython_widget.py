@@ -27,7 +27,10 @@ class IPythonWidget(RichIPythonWidget):
         self.ns_hidden = self.kernel_manager.kernel.shell.user_ns_hidden
         kernel_client.start_channels()       
         self.exit_requested.connect(self.stop)
-        self.error = False
+        self.error = False    
+
+    def saveHistory(self, command):
+        self._history.append(command)
     
     def focus_(self):
         self._control.setFocus()
