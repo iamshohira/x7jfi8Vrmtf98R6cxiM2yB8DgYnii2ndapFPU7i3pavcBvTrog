@@ -542,6 +542,8 @@ class MainWindow(QMainWindow):
             alias[f"fig{i}"] = fig
             alias[f"fig{i}axs"] = fig.axes
             for j, ax in enumerate(fig.axes):
+                if j == 0:
+                    alias[f"fig{i}ax"] = ax
                 alias[f"fig{i}ax{j}"] = ax
                 alias[f"fig{i}ax{j}ls"] = ax.lines
                 for k, line in enumerate(ax.lines):

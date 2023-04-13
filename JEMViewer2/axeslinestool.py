@@ -59,7 +59,7 @@ class StrEdit(QLineEdit):
             self.setText(initial)
 
     def value(self):
-        return self.text()
+        return self.text().replace("\\n", "\n")
 
     def set(self, value):
         self.setText(str(value))
