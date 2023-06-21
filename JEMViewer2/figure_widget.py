@@ -324,6 +324,7 @@ class MyToolbar(QToolBar):
                 (None, None, None, None),
                 ('Save', 'Save the figure', 'filesave', 'save_figure'),
                 ('SaveAnim', 'Save figures for ppt animation', os.path.join(envs.RES_DIR,'savefiganim'), 'save_figure_for_animation'),
+                ('CopyFig', 'Copy figure to clipboard', os.path.join(envs.RES_DIR,'clipboard'), 'copy_figure_to_clipboard'),
             )
         else:
             self.toolitems = (
@@ -343,6 +344,7 @@ class MyToolbar(QToolBar):
                 (None, None, None, None),
                 ('Save', 'Save the figure', 'filesave', 'save_figure'),
                 ('SaveAnim', 'Save figures for ppt animation', os.path.join(envs.RES_DIR,'savefiganim'), 'save_figure_for_animation'),
+                ('CopyFig', 'Copy figure to clipboard', os.path.join(envs.RES_DIR,'clipboard'), 'copy_figure_to_clipboard'),
             )
         self.actions = {} 
         dummybar = NavigationToolbar(FigureCanvas(), None)
@@ -416,6 +418,16 @@ class MyToolbar(QToolBar):
             self._savefiganim_dialog = SaveForAnimationDialog(self.focused_canvas, self)
         self._savefiganim_dialog.show()
         self._savefiganim_dialog.raise_()
+
+    def copy_figure_to_clipboard(self):
+        if self.focused_canvas == None:
+            self.pop_message()
+            return
+        figpath = os.path.join(envs.TEMP_DIR,'temp.png')
+        self.focused_canvas.figure.savefig(figpath)
+        clipboard = QApplication.clipboard()
+        clipboard.setPixmap(QPixmap(figpath))
+        os.remove(figpath)
 
     def home(self):
         if self.focused_canvas == None:
