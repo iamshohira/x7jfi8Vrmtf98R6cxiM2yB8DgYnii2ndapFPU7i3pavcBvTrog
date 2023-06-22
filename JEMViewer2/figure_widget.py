@@ -303,48 +303,49 @@ class MyToolbar(QToolBar):
         super().__init__(parent)
         self.mpl_toolbars = {}
         self.parent = parent
+        self.tmp_ext = 'jpg'
         if tools:
             self.toolitems = (
-                ('Loader', 'Set loader type', os.path.join(envs.RES_DIR,'dd'), 'loader'),
-                ('Popup', 'Popup figures', os.path.join(envs.RES_DIR,'popup'), 'popup'),
-                ('AddFigure', 'Add figure', os.path.join(envs.RES_DIR,'addfigure'), 'addfigure'),
-                ('AxesTool', 'Show AxesTool', os.path.join(envs.RES_DIR,'axestool'), 'axestool'),
-                ('LinesTool', 'Show LinesTool', os.path.join(envs.RES_DIR,'linestool'), 'linestool'),
-                (None, None, None, None),
-                ('Home', 'Reset original view', 'home', 'home'),
-                ('Back', 'Back to previous view', 'back', 'back'),
-                ('Forward', 'Forward to next view', 'forward', 'forward'),
-                (None, None, None, None),
+                ('Loader', 'Set loader type', os.path.join(envs.RES_DIR,'dd'), 'loader', None),
+                ('Popup', 'Popup figures', os.path.join(envs.RES_DIR,'popup'), 'popup', None),
+                ('AddFigure', 'Add figure', os.path.join(envs.RES_DIR,'addfigure'), 'addfigure', None),
+                ('AxesTool', 'Show AxesTool', os.path.join(envs.RES_DIR,'axestool'), 'axestool', None),
+                ('LinesTool', 'Show LinesTool', os.path.join(envs.RES_DIR,'linestool'), 'linestool', None),
+                (None, None, None, None, None),
+                ('Home', 'Reset original view', 'home', 'home', None),
+                ('Back', 'Back to previous view', 'back', 'back', None),
+                ('Forward', 'Forward to next view', 'forward', 'forward', None),
+                (None, None, None, None, None),
                 ('Pan',
                 'Left button pans, Right button zooms\n'
                 'x/y fixes axis, CTRL fixes aspect',
-                'move', 'pan'),
-                ('Zoom', 'Zoom to rectangle\nx/y fixes axis', 'zoom_to_rect', 'zoom'),
-                ('Subplots', 'Configure subplots', 'subplots', 'configure_subplots'),
-                (None, None, None, None),
-                ('Save', 'Save the figure', 'filesave', 'save_figure'),
-                ('SaveAnim', 'Save figures for ppt animation', os.path.join(envs.RES_DIR,'savefiganim'), 'save_figure_for_animation'),
-                ('CopyFig', 'Copy figure to clipboard', os.path.join(envs.RES_DIR,'clipboard'), 'copy_figure_to_clipboard'),
+                'move', 'pan', None),
+                ('Zoom', 'Zoom to rectangle\nx/y fixes axis', 'zoom_to_rect', 'zoom', None),
+                ('Subplots', 'Configure subplots', 'subplots', 'configure_subplots', None),
+                (None, None, None, None, None),
+                ('Save', 'Save the figure', 'filesave', 'save_figure', None),
+                ('SaveAnim', 'Save figures for ppt animation', os.path.join(envs.RES_DIR,'savefiganim'), 'save_figure_for_animation', None),
+                ('CopyFig', 'Copy figure to clipboard', os.path.join(envs.RES_DIR,'clipboard'), 'copy_figure_to_clipboard', 'clipboard_menu'),
             )
         else:
             self.toolitems = (
-                ('Loader', 'Set loader type', os.path.join(envs.RES_DIR,'dd'), 'loader'),
-                ('AddFigure', 'Add figure', os.path.join(envs.RES_DIR,'addfigure'), 'addfigure'),
-                (None, None, None, None),
-                ('Home', 'Reset original view', 'home', 'home'),
-                ('Back', 'Back to previous view', 'back', 'back'),
-                ('Forward', 'Forward to next view', 'forward', 'forward'),
-                (None, None, None, None),
+                ('Loader', 'Set loader type', os.path.join(envs.RES_DIR,'dd'), 'loader', None),
+                ('AddFigure', 'Add figure', os.path.join(envs.RES_DIR,'addfigure'), 'addfigure', None),
+                (None, None, None, None, None),
+                ('Home', 'Reset original view', 'home', 'home', None),
+                ('Back', 'Back to previous view', 'back', 'back', None),
+                ('Forward', 'Forward to next view', 'forward', 'forward', None),
+                (None, None, None, None, None),
                 ('Pan',
                 'Left button pans, Right button zooms\n'
                 'x/y fixes axis, CTRL fixes aspect',
-                'move', 'pan'),
-                ('Zoom', 'Zoom to rectangle\nx/y fixes axis', 'zoom_to_rect', 'zoom'),
-                ('Subplots', 'Configure subplots', 'subplots', 'configure_subplots'),
-                (None, None, None, None),
-                ('Save', 'Save the figure', 'filesave', 'save_figure'),
-                ('SaveAnim', 'Save figures for ppt animation', os.path.join(envs.RES_DIR,'savefiganim'), 'save_figure_for_animation'),
-                ('CopyFig', 'Copy figure to clipboard', os.path.join(envs.RES_DIR,'clipboard'), 'copy_figure_to_clipboard'),
+                'move', 'pan', None),
+                ('Zoom', 'Zoom to rectangle\nx/y fixes axis', 'zoom_to_rect', 'zoom', None),
+                ('Subplots', 'Configure subplots', 'subplots', 'configure_subplots', None),
+                (None, None, None, None, None),
+                ('Save', 'Save the figure', 'filesave', 'save_figure', None),
+                ('SaveAnim', 'Save figures for ppt animation', os.path.join(envs.RES_DIR,'savefiganim'), 'save_figure_for_animation', None),
+                ('CopyFig', 'Copy figure to clipboard', os.path.join(envs.RES_DIR,'clipboard'), 'copy_figure_to_clipboard', 'clipboard_menu'),
             )
         self.actions = {} 
         dummybar = NavigationToolbar(FigureCanvas(), None)
@@ -353,18 +354,31 @@ class MyToolbar(QToolBar):
         # self.loc_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         # self.loc_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
 
-        for text, tooltip_text, image_file, callback in self.toolitems:
+        for text, tooltip_text, image_file, callback, rightcallback in self.toolitems:
             if text is None:
                 self.addSeparator()
             else:
-                a = self.addAction(dummybar._icon(image_file + '.png'), text, getattr(self, callback))
+                a = self.addCAction(dummybar._icon(image_file + '.png'), text, callback, rightcallback)
                 self.actions[callback] = a
                 if callback in ['zoom', 'pan']:
                     a.setCheckable(True)
                 if tooltip_text is not None:
                     a.setToolTip(tooltip_text)
-        #label = self.addWidget(self.loc_label)
-        #label.setVisible(True)
+
+    def addCAction(self, icon, text, callback, rightcallback):
+        b = RightClickToolButton(self)
+        b.setIcon(icon)
+        b.setText(text)
+        b.clicked.connect(getattr(self, callback))
+        if rightcallback is not None:
+            b.rightClicked.connect(getattr(self, rightcallback))
+        self.addWidget(b)
+        return b
+
+    def event(self, event):
+        if event.type() == QEvent.Type.ContextMenu:
+            return True
+        return super().event(event)
 
     def loader(self):
         DDHandler.show(self)
@@ -423,11 +437,23 @@ class MyToolbar(QToolBar):
         if self.focused_canvas == None:
             self.pop_message()
             return
-        figpath = os.path.join(envs.TEMP_DIR,'temp.png')
+        figpath = os.path.join(envs.TEMP_DIR,'temp.' + self.tmp_ext)
         self.focused_canvas.figure.savefig(figpath)
         clipboard = QApplication.clipboard()
         clipboard.setPixmap(QPixmap(figpath))
-        os.remove(figpath)
+        #os.remove(figpath)
+
+    def clipboard_menu(self):
+        def set_ext():
+            sender = self.sender()
+            self.tmp_ext = sender.text()
+        menu = QMenu(self)
+        for ext in ['png', 'jpg', 'pdf', 'svg']:
+            action = menu.addAction(ext)
+            action.setCheckable(True)
+            action.setChecked(ext == self.tmp_ext)
+            action.triggered.connect(set_ext)
+        menu.exec(QCursor.pos())
 
     def home(self):
         if self.focused_canvas == None:
@@ -616,4 +642,10 @@ class SaveForAnimationDialog(QDialog):
         SaveForAnimationDialog.active = False
         event.accept()
 
-        
+class RightClickToolButton(QToolButton):
+    rightClicked = pyqtSignal()
+    def mouseReleaseEvent(self, e):
+        if e.button() == Qt.RightButton:
+            self.rightClicked.emit()
+        else:
+            super().mouseReleaseEvent(e)
