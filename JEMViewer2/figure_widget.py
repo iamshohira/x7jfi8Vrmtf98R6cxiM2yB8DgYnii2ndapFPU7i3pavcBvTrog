@@ -21,9 +21,6 @@ from JEMViewer2.file_handler import savefile, envs
 from JEMViewer2.axeslinestool import BoolEdit, AliasButton
 
 from JEMViewer2.deco_figure import DecoFigure
-from openpyxl import Workbook
-from openpyxl.chart import ScatterChart, Reference, Series
-from openpyxl.utils.units import pixels_to_EMU
 from matplotlib import colors as mcolors
 import matplotlib.backends.qt_editor.figureoptions as figopt
 
@@ -451,6 +448,13 @@ class MyToolbar(QToolBar):
         #os.remove(figpath)
 
     def export_data_to_excel(self):
+        try:
+            from openpyxl import Workbook
+            from openpyxl.chart import ScatterChart, Reference, Series
+            from openpyxl.utils.units import pixels_to_EMU
+        except:
+            self.pop_message("openpyxl not installed. Please visit the JEMViewer2 manual page for more information.")
+            return
         marker_map = {
             'point': "dot",
             'pixel': "dot",
@@ -608,8 +612,8 @@ class MyToolbar(QToolBar):
         self.mpl_toolbars.pop(canvas)
         self.focused_canvas = None
 
-    def pop_message(self):
-        QMessageBox.critical(self,"Error","Please focus a figure widget.")
+    def pop_message(self, message="Please focus a figure widget."):
+        QMessageBox.critical(self,"Error",message)
 
 class MySubplotToolQt(SubplotToolQt):
     active = False
