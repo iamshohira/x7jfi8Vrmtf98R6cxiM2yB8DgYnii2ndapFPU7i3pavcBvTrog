@@ -21,6 +21,11 @@ from JEMViewer2.file_handler import savefile, envs
 from JEMViewer2.axeslinestool import BoolEdit, AliasButton
 
 from JEMViewer2.deco_figure import DecoFigure
+from openpyxl import Workbook
+from openpyxl.chart import ScatterChart, Reference, Series
+from openpyxl.utils.units import pixels_to_EMU
+from matplotlib import colors as mcolors
+import matplotlib.backends.qt_editor.figureoptions as figopt
 
 screen_dpi = 72
 
@@ -326,6 +331,7 @@ class MyToolbar(QToolBar):
                 ('Save', 'Save the figure', 'filesave', 'save_figure', None),
                 ('SaveAnim', 'Save figures for ppt animation', os.path.join(envs.RES_DIR,'savefiganim'), 'save_figure_for_animation', None),
                 ('CopyFig', 'Copy figure to clipboard', os.path.join(envs.RES_DIR,'clipboard'), 'copy_figure_to_clipboard', 'clipboard_menu'),
+                ('Excel', 'Export data to excel', os.path.join(envs.RES_DIR,'excel'), 'export_data_to_excel', None),
             )
         else:
             self.toolitems = (
@@ -346,6 +352,7 @@ class MyToolbar(QToolBar):
                 ('Save', 'Save the figure', 'filesave', 'save_figure', None),
                 ('SaveAnim', 'Save figures for ppt animation', os.path.join(envs.RES_DIR,'savefiganim'), 'save_figure_for_animation', None),
                 ('CopyFig', 'Copy figure to clipboard', os.path.join(envs.RES_DIR,'clipboard'), 'copy_figure_to_clipboard', 'clipboard_menu'),
+                ('Excel', 'Export data to excel', os.path.join(envs.RES_DIR,'excel'), 'export_data_to_excel', None),
             )
         self.actions = {} 
         dummybar = NavigationToolbar(FigureCanvas(), None)
@@ -442,6 +449,119 @@ class MyToolbar(QToolBar):
         clipboard = QApplication.clipboard()
         clipboard.setPixmap(QPixmap(figpath))
         #os.remove(figpath)
+
+    def export_data_to_excel(self):
+        marker_map = {
+            'point': "dot",
+            'pixel': "dot",
+            'circle': "circle",
+            'triangle_down': "triangle",
+            'triangle_up': "triangle",
+            'triangle_left': "triangle",
+            'triangle_right': "triangle",
+            'tri_down': "triangle",
+            'tri_up': "triangle",
+            'tri_left': "triangle",
+            'tri_right': "triangle",
+            'octagon': "square",
+            'square': "square",
+            'pentagon': "square",
+            'star': "star",
+            'hexagon1': "square",
+            'hexagon2': "square",
+            'plus': "x",
+            'x': "x",
+            'diamond':"diamond",
+            'thin_diamond':"diamond",
+            'vline': "dash",
+            'hline': "dash",
+            'plus_filled':"x",
+            'x_filled':"x",
+            'tickleft': "triangle",
+            'tickright': "triangle",
+            'tickup': "triangle",
+            'tickdown': "triangle",
+            'caretleft': "triangle",
+            'caretright': "triangle",
+            'caretup': "triangle",
+            'caretdown': "triangle",
+            'caretleftbase': "triangle",
+            'caretrightbase': "triangle",
+            'caretupbase': "triangle",
+            'caretdownbase': "triangle",
+            '': 'nothing'
+        }
+        line_map = {
+            "Solid": "solid",
+            "Dashed": "dash",
+            "Dashdot": "sysDashDot",
+            "Dotted": "dot",
+            "None": "None"
+        }
+        if self.focused_canvas == None:
+            self.pop_message()
+            return
+        startpath = os.path.expanduser(matplotlib.rcParams['savefig.directory'])
+        basename = os.path.basename(self.focused_canvas.get_default_filename())
+        base, ext = os.path.splitext(basename)
+        start = os.path.join(startpath, base)
+        filepath = QFileDialog.getSaveFileName(self,"Project name",start,"Excel Book (*.xlsx)")
+        if filepath[0] == '':
+            return
+        filepath = filepath[0]
+        workbook = Workbook()
+        for i, fig in enumerate(self.parent.figs):
+            for j, ax in enumerate(fig.axes):
+                sheet = workbook.create_sheet(f"fig{i}ax{j}", 0)
+                chart = ScatterChart()
+                chart.x_axis.title = ax.get_xlabel()
+                chart.y_axis.title = ax.get_ylabel()
+                chart.x_axis.scaling.min = ax.get_xlim()[0]
+                chart.x_axis.scaling.max = ax.get_xlim()[1]
+                chart.y_axis.scaling.min = ax.get_ylim()[0]
+                chart.y_axis.scaling.max = ax.get_ylim()[1]
+                if ax.get_xscale() == 'log':
+                    chart.x_axis.scaling.logBase = 10
+                if ax.get_yscale() == 'log':
+                    chart.y_axis.scaling.logBase = 10
+                chart.title = ax.get_title()
+                chart.height = 15
+                chart.width = 15
+                column = 1
+                for line in ax.lines:
+                    x = line.get_xdata()
+                    y = line.get_ydata()
+                    data_length = len(x)
+                    sheet.cell(row=1, column=column, value=line.get_label())
+                    sheet.cell(row=2, column=column, value=ax.get_xlabel())
+                    sheet.cell(row=2, column=column+1, value=ax.get_ylabel())
+                    for i in range(data_length):
+                        sheet.cell(row=i+3, column=column, value=x[i])
+                        sheet.cell(row=i+3, column=column+1, value=y[i])
+                    x_wl = Reference(sheet, min_col=column, min_row=3, max_row=data_length+2)
+                    y_wl = Reference(sheet, min_col=column+1, min_row=3, max_row=data_length+2)
+                    series = Series(y_wl, x_wl, title=line.get_label())
+                    linestyle = figopt.LINESTYLES[line.get_linestyle()]
+                    if linestyle != 'None':
+                        series.graphicalProperties.line.dashStyle = line_map[linestyle]
+                        color = mcolors.to_hex(mcolors.to_rgb(line.get_color())).replace('#','')
+                        series.graphicalProperties.line.solidFill = color
+                        series.graphicalProperties.line.width = pixels_to_EMU(line.get_linewidth())
+                    else:
+                        series.graphicalProperties.line.noFill = True
+                    marker = figopt.MARKERS[line.get_marker()]
+                    if marker != 'nothing':
+                        series.marker.symbol = marker_map[marker]
+                        series.marker.size = line.get_markersize()
+                        incolor = mcolors.to_hex(mcolors.to_rgb(line.get_markerfacecolor())).replace('#','')
+                        series.marker.graphicalProperties.solidFill = incolor
+                        outcolor = mcolors.to_hex(mcolors.to_rgb(line.get_markeredgecolor())).replace('#','')
+                        series.marker.graphicalProperties.line.solidFill = outcolor
+                        series.marker.graphicalProperties.line.width = pixels_to_EMU(line.get_markeredgewidth())
+                    chart.series.append(series)
+                    column += 2
+                sheet.add_chart(chart,"A10")
+        workbook.save(filepath)
 
     def clipboard_menu(self):
         def set_ext():
