@@ -533,6 +533,8 @@ class MyToolbar(QToolBar):
                 chart.width = 15
                 column = 1
                 for line in ax.lines:
+                    if not line.get_visible():
+                        continue
                     x = line.get_xdata()
                     y = line.get_ydata()
                     data_length = len(x)
