@@ -100,9 +100,11 @@ class SaveFiles():
         with open(self.logfilename, "a", encoding='utf-8') as f:
             print(command, file=f)
 
-    def initialize(self,home_dir,figs):
+    def set_workspace(self,home_dir):
         self.make_tmpdir(home_dir)
         self.make_commandfile()
+
+    def set_figure(self,figs):
         self.figs = figs
 
     def make_tmpdir(self,home_dir):

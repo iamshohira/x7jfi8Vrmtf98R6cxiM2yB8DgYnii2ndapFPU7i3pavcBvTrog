@@ -17,9 +17,7 @@ def set_axsize(w,h,fig=None):
     bottom_m = now_hinch * fig.subplotpars.bottom
     new_winch = left_m + winch + right_m
     new_hinch = top_m + hinch + bottom_m
-    fig.canvas.resize(int(new_winch*72),int(new_hinch*72))
-    fig.set_size_inches(new_winch,new_hinch)
-
+    set_figsize(new_winch*2.54, new_hinch*2.54, fig=fig)
 
 def set_figsize(w,h,fig=None):
     """set figure size
@@ -33,8 +31,16 @@ def set_figsize(w,h,fig=None):
         fig = fig0
     winch = w / 2.54
     hinch = h / 2.54
-    fig.set_size_inches(winch,hinch)
-    fig.canvas.resize(int(winch*72),int(hinch*72))
+    fig.set_size_inches(winch, hinch)
+    wpixel = int(winch * fig.get_dpi() / fig.canvas.device_pixel_ratio)
+    hpixel = int(hinch * fig.get_dpi() / fig.canvas.device_pixel_ratio)
+    if is_floatmode:
+        fig.canvas.resize(wpixel,hpixel)
+    else:
+        insize = fig.canvas.size()
+        outsize = fig.canvas.mdi.size()
+        dw, dh = outsize.width() - insize.width(), outsize.height() - insize.height()
+        fig.canvas.mdi.resize(wpixel + dw, hpixel + dh)
     fig.set_size_inches(winch,hinch)
 
 

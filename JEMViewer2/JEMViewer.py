@@ -41,6 +41,7 @@ parser.add_argument("-l","--local", action="store_true")
 parser.add_argument("-u","--update", default=None, help="force update to the specified version")
 args = parser.parse_args()
 envs.initialize(args)
+savefile.set_workspace(envs.TEMP_DIR)
 DEFAULT_NAMESPACE = {
     "np": np,
     "pickle": pickle,
@@ -51,57 +52,100 @@ EXIT_CODE_REBOOT = -11231351
 ipaexg = os.path.join(envs.RES_DIR, "ipaexg.ttf")
 ipaexm = os.path.join(envs.RES_DIR, "ipaexm.ttf")
 
-class MainWindow(QMainWindow):
-    def __init__(self, filepath, call_as_library = False, call_from = None, parent=None):
+class BaseMainWindow(QMainWindow):
+    def __init__(self, filepath, reboot=True, widgets=None, call_as_library = False, call_from = None, parent=None):
         super().__init__(parent)
+        self.setAcceptDrops(True)
+        self._set_statusbar()
+        self.force_close = False
         self.call_as_library = call_as_library
         self.call_from = call_from
         self.notion_handler = NotionHandler(envs.SETTING_DIR)
-        self.bar = self.statusBar()
-        self.bar.setText = self.bar.showMessage
-        self.mdiwindows = {}
-        self.force_close = False
+        self.auto_updater = AutoUpdater(self.notion_handler)
+        self._create_menubar()
         self.saved_command = ""
         self.window_id = randomname(4)
         self.setWindowTitle(f"JEMViewer2 id: {self.window_id}")
-        if mode == floatstyle:
-            self.setGeometry(300, 300, 800, 500)
         self.filepath = filepath
         if filepath != None:
             matplotlib.rcParams['savefig.directory'] = (os.path.dirname(filepath))
-        if not call_as_library:
-            self.auto_updater = AutoUpdater(self.notion_handler)
-            if self.auto_updater.can_update or args.update != None:
-                self.timer_for_update = QTimer(self)
-                self.timer_for_update.timeout.connect(self.do_update)
-                self.timer_for_update.start(1000)
-            else:
-                font_manager.fontManager.addfont(ipaexg)
-                font_manager.fontManager.addfont(ipaexm)
-            self.ipython_w = IPythonWidget(self.auto_updater.header)
+        self.toolbar = MyToolbar(self, self.is_floatmode)
+        self._load_font()
+        self._set_update_timer()        
+        if reboot:
+            header = self.auto_updater.header if not call_as_library else "JEMViewer2 as Python Library\n\n"
+            self.ipython_w = IPythonWidget(header)
+            self.log_w = LogWidget(self)
+            self.figs = []
         else:
-            self.ipython_w = IPythonWidget("JEMViewer2 as Python Library\n\n")
+            self.ipython_w = widgets["ipython"]
+            self.log_w = widgets["log"]
+            self.figs = widgets["figures"]
+        self.figure_widgets = []
+        self.ns = self.ipython_w.ns
+        self.linestool = LinesTool(self.figs, self.ns, self.is_floatmode)
+        self.axestool = AxesTool(self.figs, self.is_floatmode)
+        self._create_main_window()
+        self._set_slot()
+        if reboot:
+            self.add_figure()
+        else:
+            for fig in self.figs:
+                self.add_figure(fig)
+        self.initialize(reboot)
+
+    def _set_statusbar(self):
+        # set for loc rabel of mpltoolbar
+        self.bar = self.statusBar()
+        self.bar.setText = self.bar.showMessage
+        self.slider = QSlider(Qt.Orientation.Horizontal)
+        self.slider.setFixedWidth(100)
+        self.slider.setRange(10,50)
+        self.slider.setValue(10)
+        self.text = QLabel("100%")
+        self.text.setFixedWidth(40)
+        self.bar.addPermanentWidget(self.slider)
+        self.bar.addPermanentWidget(self.text)
+        self.slider.valueChanged.connect(lambda x: self.text.setText(f"{10*x}%"))
+        self.slider.valueChanged.connect(lambda x: self.magnify_figures(10*x))
+
+    def magnify_figures(self, value):
+        for figure_w in self.figure_widgets:
+            figure_w.magnify(value)
+
+    def _load_font(self):
+        # avoid overwriting error for font files when updating
+        if self.call_as_library or not self.auto_updater.can_update:
             font_manager.fontManager.addfont(ipaexg)
             font_manager.fontManager.addfont(ipaexm)
-        self.ns = self.ipython_w.ns
-        self.figure_widgets = []
-        self.figs = []
-        self.linestool = LinesTool(self.figs, self.ns, mode == floatstyle)
-        self.axestool = AxesTool(self.figs, mode == floatstyle)
-        self.toolbar = MyToolbar(self, mode == floatstyle)
-        self.log_w = LogWidget(self,self.ns)
-        self._create_main_window()
-        self.add_figure()
-        self._set_slot()
-        self._create_menubar()
-        self.setAcceptDrops(True)
-        self.initialize()
 
-    def do_update(self):
-        self.auto_updater.update(args.update)
-        self.close_(True)
-        self.timer_for_update.stop()
+    def _set_update_timer(self):
+        if not self.call_as_library:
+            if self.auto_updater.can_update and args.update != None:
+                self.timer_for_update = QTimer(self)
+                def do_update():
+                    self.auto_updater.update(args.update)
+                    self.close_(True)
+                    self.timer_for_update.stop()
+                self.timer_for_update.timeout.connect(do_update)
+                self.timer_for_update.start(1000)
 
+    def _create_menubar(self):
+        menubar = self.menuBar()
+        filemenu = menubar.addMenu("&File")
+        save = QAction( "&Save",self)
+        save.setShortcut(QKeySequence.Save)
+        save.triggered.connect(self.save)
+        filemenu.addAction(save)
+        saveas = QAction("Save &As",self)
+        saveas.setShortcut(QKeySequence.SaveAs)
+        saveas.triggered.connect(self.saveas)
+        filemenu.addAction(saveas)
+        open_ = QAction("&Open",self)
+        open_.setShortcut(QKeySequence.Open)
+        open_.triggered.connect(self.open)
+        filemenu.addAction(open_)
+        
     def print_log(self,item):
         self.ipython_w.clearPrompt()
         self.ipython_w.printTextInBuffer(item.text())
@@ -114,17 +158,15 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def dropEvent(self,event):
-        event.accept()
-        mime = event.mimeData()
-        if os.name == 'posix':
-            filenames = mime.text().replace('file://','').replace('file:','').split('\n')
+        if event.mimeData().hasUrls():
+            event.accept()
+            for url in event.mimeData().urls():
+                if url.path().endswith(".jem2"):
+                    self.filepath = url.path()
+                    self.reboot()
         else:
-            filenames = mime.text().replace('file:///','').replace('file:','').split('\n')
-        if ".jem2" in filenames[0]:
-            self.filepath = filenames[0]
-            self.reboot()
-        super().dropEvent(event)
-
+            event.ignore()
+        
     def _load_helper(self):
         with open(os.path.join(envs.EXE_DIR,'helper_function.py'), 'r') as f:
             command = f.read()
@@ -155,66 +197,9 @@ class MainWindow(QMainWindow):
                     savefile.save_command(command, alias=False, exclude=[])
         self.ipython_w.executeCommand("",hidden=True)
 
-    def _create_menubar(self):
-        menubar = self.menuBar()
-        filemenu = menubar.addMenu("&File")
-        save = QAction( "&Save",self)
-        save.setShortcut(QKeySequence.Save)
-        save.triggered.connect(self.save)
-        filemenu.addAction(save)
-        saveas = QAction("Save &As",self)
-        saveas.setShortcut(QKeySequence.SaveAs)
-        saveas.triggered.connect(self.saveas)
-        filemenu.addAction(saveas)
-        open_ = QAction("&Open",self)
-        open_.setShortcut(QKeySequence.Open)
-        open_.triggered.connect(self.open)
-        filemenu.addAction(open_)
-        modemenu = menubar.addMenu("&Mode")
-        group = QActionGroup(modemenu)
-        for m in modes:
-            action = QAction(m, modemenu, checkable=True, checked=m==mode)
-            modemenu.addAction(action)
-            group.addAction(action)
-        group.setExclusive(True)
-        group.triggered.connect(self.mode_switched)
-        if mode == dockstyle:
-            sortmenu = menubar.addMenu("&Sort")
-            sortmenu.addAction("Cascade")
-            sortmenu.addAction("Tile")
-            sortmenu.triggered[QAction].connect(self.mdiaction)
-        helpmenu = menubar.addMenu("&Link")
-        manual = QAction("&Manual", self)
-        manual.triggered.connect(self.open_manual)
-        helpmenu.addAction(manual)
-
     def open_manual(self):
         if self.notion_handler.ok:
             webbrowser.open_new(self.notion_handler.data["manual_url"])
-
-    def mdiaction(self, q):
-        if q.text() == "Cascade":
-            self.mdi.cascadeSubWindows()
-        if q.text() == "Tile":
-            self.mdi.tileSubWindows()
-
-    def tiling_windows(self):
-        try:
-            self.mdi.tileSubWindows()
-        except:
-            pass
-
-    def cascading_windows(self):
-        try:
-            self.mdi.cascadeSubWindows()
-        except:
-            pass
-
-    def mode_switched(self, action):
-        global mode
-        if mode == action.text(): return
-        mode = action.text()
-        self.reboot()
 
     def close_(self, force):
         self.force_close = force
@@ -222,7 +207,6 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         def exit():
-            savefile.remove_tmpdir()
             for figure_w in self.figure_widgets:
                 figure_w.close_()
             self.linestool.close()
@@ -246,59 +230,6 @@ class MainWindow(QMainWindow):
         else:
             event.ignore()    
 
-    def add_essential_dock(self, title, wid, pos):
-        dock = QDockWidget(title, self)
-        dock.setWidget(wid)
-        self.addDockWidget(pos, dock)
-        dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable |  QDockWidget.DockWidgetFeature.DockWidgetMovable )
-        return dock
-    
-    def add_dock(self, wid, title="", pos="right"):
-        if mode == dockstyle:
-            posdic = {
-                "top": Qt.DockWidgetArea.TopDockWidgetArea,
-                "left": Qt.DockWidgetArea.LeftDockWidgetArea,
-                "right": Qt.DockWidgetArea.RightDockWidgetArea,
-                "bottom": Qt.DockWidgetArea.BottomDockWidgetArea,
-            }
-            dock = QDockWidget(title, self)
-            dock.setWidget(wid)
-            self.addDockWidget(posdic[pos], dock)
-        else:
-            wid.show()    
-
-    def add_mdiwindow(self, widget, title=None):
-        if mode == dockstyle:
-            sub = QMdiSubWindow()
-            sub.setWidget(widget)
-            self.mdi.addSubWindow(sub)
-            sub.show()
-            self.mdiwindows[widget] = sub
-            if title != None:
-                sub.setWindowTitle(title)
-        else:
-            widget.show()
-
-    def _create_main_window(self):
-        if mode == dockstyle:
-            self.mdi = QMdiArea(self)
-            self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, self.toolbar)
-            self.add_essential_dock("console", self.ipython_w, Qt.DockWidgetArea.LeftDockWidgetArea)
-            self.add_essential_dock("log", self.log_w, Qt.DockWidgetArea.LeftDockWidgetArea)
-            self.add_essential_dock("axestool",self.axestool, Qt.DockWidgetArea.BottomDockWidgetArea)
-            self.add_essential_dock("linestool",self.linestool, Qt.DockWidgetArea.BottomDockWidgetArea)
-            self.setCentralWidget(self.mdi)
-        else:
-            self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
-            splitter = QSplitter()
-            splitter.addWidget(self.log_w)
-            splitter.addWidget(self.ipython_w)
-            self.setCentralWidget(splitter)
-
-    def raise_figure_widgets(self):
-        for figure_w in self.figure_widgets:
-            figure_w.raise_()
-
     def draw_and_requiring_save(self):
         for figure_w in self.figure_widgets:
             figure_w.draw()
@@ -310,14 +241,14 @@ class MainWindow(QMainWindow):
         self.linestool.line_moved.connect(self.update_alias)
         self.linestool.alias_clicked.connect(self.ipython_w.printTextAtCurrentPos)
         self.ipython_w.command_finished.connect(self.log_w.store)
-        self.ipython_w.command_finished.connect(lambda: self._save_command(fileparse=True))
+        self.ipython_w.command_finished.connect(self._save_command_with_parse)
         self.log_w.item_added.connect(self.draw_and_requiring_save)
         self.log_w.itemDoubleClicked.connect(self.print_log)
         self.log_w.inputText.connect(self.print_log_str)
         self.ipython_w.command_finished.connect(self.update_alias)
 
-    def add_figure(self):
-        figure_w = MyFigureCanvas(self, self.toolbar, self.call_as_library, self.call_from)
+    def add_figure(self, fig=None):
+        figure_w = MyFigureCanvas(self, self.toolbar, self.call_as_library, self.call_from, fig=fig)
         figure_w.set_window_title(id=len(self.figure_widgets), prefix=self.window_id)
         figure_w.nd_pasted.connect(self.append_ndarray)
         figure_w.line_pasted.connect(self.append_line2D)
@@ -329,10 +260,11 @@ class MainWindow(QMainWindow):
         figure_w.custom_loader.connect(self.update_alias)
         figure_w.alias_pasted.connect(self.linestool.move_by_drag)
         figure_w.remove_required.connect(self.remove_figure)
-        self.add_mdiwindow(figure_w)
+        self.show_widget(figure_w)
         self.toolbar.add_canvas(figure_w)
         self.figure_widgets.append(figure_w)
-        self.figs.append(figure_w.fig)
+        if fig is None:
+            self.figs.append(figure_w.fig)
         self.update_alias()
         return figure_w.fig
 
@@ -351,17 +283,19 @@ class MainWindow(QMainWindow):
         figure_w.alias_pasted.disconnect(self.linestool.move_by_drag)
         figure_w.remove_required.disconnect(self.remove_figure)
         figure_w.close_()
-        if mode == dockstyle:
-            self.mdi.removeSubWindow(self.mdiwindows[figure_w])
         for i, figure_w in enumerate(self.figure_widgets):
             figure_w.set_window_title(id=i)
         self.update_alias()
+        return figure_w
             
     def _remove_slot(self):
         self.linestool.line_moved.disconnect(self.update_alias)
+        self.linestool.alias_clicked.disconnect(self.ipython_w.printTextAtCurrentPos)
         self.ipython_w.command_finished.disconnect(self.log_w.store)
+        self.ipython_w.command_finished.disconnect(self._save_command_with_parse)
         self.log_w.item_added.disconnect(self.draw_and_requiring_save)
         self.log_w.itemDoubleClicked.disconnect(self.print_log)
+        self.log_w.inputText.disconnect(self.print_log_str)
         self.ipython_w.command_finished.disconnect(self.update_alias)
 
     @pyqtSlot(str,np.ndarray)
@@ -417,12 +351,12 @@ class MainWindow(QMainWindow):
         self.filepath = filepath[0]
         self.reboot()
 
-    def reboot(self,force=False):
-        for figure_w in self.figure_widgets:
-            figure_w.close_()
-        self.ipython_w.stop()
-        self.close_(force)
-        get_app_qt6().exit(EXIT_CODE_REBOOT)
+    # def reboot(self,force=False):
+    #     for figure_w in self.figure_widgets:
+    #         figure_w.close_()
+    #     self.ipython_w.stop()
+    #     self.close_(force)
+    #     get_app_qt6().exit(EXIT_CODE_REBOOT)
 
     def _set_windowname(self):
         self.setWindowTitle(os.path.basename(self.filepath))
@@ -436,23 +370,23 @@ class MainWindow(QMainWindow):
             command = savefile.load()
             # PyQt5 to PyQt6
             command = command.replace("PyQt5","PyQt6")
-            self.ipython_w.executeCommand(command,hidden=True)
             log = savefile.load_log()
             self._set_windowname()
             self.log_w.set(log)
             self.saved_command = command
+            self.ipython_w.executeCommand(command,hidden=True)
 
     def show_datatable(self, data):
         if type(data) == Line2D:
             data = np.vstack(data.get_data())
         self.editwidget = EditWidget(data.T)
-        self.add_mdiwindow(self.editwidget)
+        self.show_widget(self.editwidget)
     
     @pyqtSlot(str,str)
     def open_tablewidget(self,filename,sep):
         self.tempwidget = TempWidget(filename,sep)
         self.tempwidget.setGeometry(self.geometry().left(),self.geometry().top(),self.geometry().width(),self.geometry().height())
-        self.add_mdiwindow(self.tempwidget)
+        self.show_widget(self.tempwidget)
 
     @pyqtSlot(list)
     def run_custom_loader(self,lis):
@@ -488,8 +422,7 @@ class MainWindow(QMainWindow):
             "edit": self.direct_edit,
             "set_loader": DDHandler.set_loader,
             "savedir": savefile.dirname,
-            "popup": self.raise_figure_widgets,
-            "reboot": lambda: self.reboot(force=True),
+            "reboot": self.reboot,
             "update_alias": self.update_alias,
             "show_data": self.show_datatable,
             "add_figure": self.add_figure,
@@ -500,16 +433,15 @@ class MainWindow(QMainWindow):
             "update_legend": self.linestool.update_legend,
             "set_axesproperties": self.axestool.set_axesproperties,
             "legend_autoupdate": self.linestool.legend_autoupdate,
-            "add_dock": self.add_dock,
-            "add_mdi": self.add_mdiwindow,
-            "tiling_windows": self.tiling_windows,
-            "cascading_windows": self.cascading_windows,
             "notion_handler": self.notion_handler,
             "reload_addon": self._load_user_py,
             "execom": self.execom,
             "get_log": self.log_w.get,
             "ipy": self.ipython_w,
             "save_history": self.ipython_w.saveHistory,
+            "dockmode": self.dockmode,
+            "floatmode": self.floatmode,
+            "is_floatmode": self.is_floatmode,
         }
         self.ns.update(DEFAULT_NAMESPACE)
         self.ns.update(namespace)
@@ -523,16 +455,20 @@ class MainWindow(QMainWindow):
             lastcommand = "_ = " + lastcommand
         savefile.save_command(lastcommand,fileparse)
 
-    def initialize(self):
-        savefile.initialize(envs.TEMP_DIR, self.figs)
+    def _save_command_with_parse(self):
+        self._save_command(True)
+
+    def initialize(self, reboot):
+        savefile.set_figure(self.figs)
         self._set_initial_namespace()
         self.update_alias() 
-        self._load_helper()
-        self._load_savefile()
-        savefile.save_command(datetime.now().strftime('\n# HEADER %Y-%m-%d %H:%M:%S\n'),alias=False)
-        self._load_user_py()
-        savefile.save_command(datetime.now().strftime('\n# COMMAND LOG %Y-%m-%d %H:%M:%S\n'),alias=False)
-        self.update_alias()
+        if reboot:
+            self._load_helper()
+            self._load_savefile()
+            savefile.save_command(datetime.now().strftime('\n# HEADER %Y-%m-%d %H:%M:%S\n'),alias=False)
+            self._load_user_py()
+            savefile.save_command(datetime.now().strftime('\n# COMMAND LOG %Y-%m-%d %H:%M:%S\n'),alias=False)
+            self.update_alias()
 
     def direct_edit(self):
         subprocess.run([envs.RUN, savefile.logfilename])
@@ -576,6 +512,149 @@ class MainWindow(QMainWindow):
         self.linestool.load_lines()
         self.axestool.load_axes()
 
+    def _switch_mode(self, MainWindowClass, reboot=False):
+        self._remove_slot()
+        widgets = {
+            "ipython": self.ipython_w,
+            "log": self.log_w,
+            "figures": self.figs,
+        }
+        new = MainWindowClass(self.filepath, reboot=reboot, widgets=widgets, call_as_library=self.call_as_library, call_from=self.call_from)
+        new.show()
+        self.close_(True)
+
+    def dockmode(self):
+        self._switch_mode(DockMainWindow)
+
+    def floatmode(self):
+        self._switch_mode(FloatMainWindow)
+
+
+class DockMainWindow(BaseMainWindow):
+    def __init__(self, filepath, reboot=True, widgets=None, call_as_library = False, call_from = None, parent=None):
+        self.is_floatmode = False
+        self.mdiwindows = {}
+        super().__init__(filepath, reboot, widgets, call_as_library, call_from, parent)
+        self._create_sortmenubar()
+
+    def reboot(self):
+        self._switch_mode(DockMainWindow, reboot=True)
+
+    def switch_mode(self):
+        self._switch_mode(FloatMainWindow)
+
+    def _create_sortmenubar(self):
+        sortmenu = self.menuBar().addMenu("&Sort")
+        sortmenu.addAction("Cascade")
+        sortmenu.addAction("Tile")
+        def mdiaction(q):
+            if q.text() == "Cascade":
+                self.mdi.cascadeSubWindows()
+            if q.text() == "Tile":
+                self.mdi.tileSubWindows()
+        sortmenu.triggered[QAction].connect(mdiaction)
+
+    def _create_main_window(self):
+        self.mdi = QMdiArea(self)
+        self.mdi.setActivationOrder(QMdiArea.WindowOrder.StackingOrder)
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, self.toolbar)
+        self.add_essential_dock("console", self.ipython_w, Qt.DockWidgetArea.LeftDockWidgetArea)
+        self.add_essential_dock("log", self.log_w, Qt.DockWidgetArea.LeftDockWidgetArea)
+        self.add_essential_dock("axestool",self.axestool, Qt.DockWidgetArea.BottomDockWidgetArea)
+        self.add_essential_dock("linestool",self.linestool, Qt.DockWidgetArea.BottomDockWidgetArea)
+        self.setCentralWidget(self.mdi)
+
+    def add_essential_dock(self, title, wid, pos):
+        dock = QDockWidget(title, self)
+        dock.setWidget(wid)
+        self.addDockWidget(pos, dock)
+        dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable )
+        return dock
+    
+    def add_dock(self, wid, title="", pos="right"):
+        posdic = {
+            "top": Qt.DockWidgetArea.TopDockWidgetArea,
+            "left": Qt.DockWidgetArea.LeftDockWidgetArea,
+            "right": Qt.DockWidgetArea.RightDockWidgetArea,
+            "bottom": Qt.DockWidgetArea.BottomDockWidgetArea,
+        }
+        dock = QDockWidget(title, self)
+        dock.setWidget(wid)
+        self.addDockWidget(posdic[pos], dock)
+
+    def show_widget(self, widget, title=None):
+        sub = QMdiSubWindow()
+        sub.setWidget(widget)
+        #sub.setSizePolicy(QSizePolicy.MinimumExpanding,QSizePolicy.MinimumExpanding)
+        self.mdi.addSubWindow(sub)
+        sub.show()
+        self.mdiwindows[widget] = sub
+        if title != None:
+            sub.setWindowTitle(title)
+
+    def remove_figure(self, id):
+        figure_w = super().remove_figure(id)
+        self.mdi.removeSubWindow(self.mdiwindows[figure_w])
+
+    def tiling(self):
+        self.mdi.tileSubWindows()
+
+    def cascading(self):
+        self.mdi.cascadeSubWindows()
+
+    def _set_initial_namespace(self):
+        super()._set_initial_namespace()
+        additionalnamespace = {
+            "add_dock": self.add_dock,
+            "add_mdi": self.show_widget,
+            "tiling_windows": self.tiling,
+            "cascading_windows": self.cascading,
+            "notion_handler": self.notion_handler,
+            "mdiwindows": self.mdiwindows,
+        }
+        self.ns.update(additionalnamespace)
+
+    def add_figure(self, fig=None):
+        fig_ = super().add_figure(fig)
+        fig_.canvas.set_mdi(self.mdiwindows[fig_.canvas])
+        return fig_
+
+
+class FloatMainWindow(BaseMainWindow):
+    def __init__(self, filepath, reboot=True, widgets=None, call_as_library = False, call_from = None, parent=None):
+        self.is_floatmode = True
+        super().__init__(filepath, reboot, widgets, call_as_library, call_from, parent)
+        self.setGeometry(300, 300, 800, 500)
+        self._create_main_window()
+
+    def reboot(self):
+        self._switch_mode(FloatMainWindow, reboot=True)
+
+    def switch_mode(self):
+        self._switch_mode(DockMainWindow)
+
+    def _create_main_window(self):
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
+        splitter = QSplitter()
+        splitter.addWidget(self.log_w)
+        splitter.addWidget(self.ipython_w)
+        self.setCentralWidget(splitter)
+
+    def raise_figure_widgets(self):
+        for figure_w in self.figure_widgets:
+            figure_w.raise_()
+
+    def show_widget(self, widget):
+        widget.show()
+
+    def _set_initial_namespace(self):
+        super()._set_initial_namespace()
+        additionalnamespace = {
+            "popup": self.raise_figure_widgets,
+        }
+        self.ns.update(additionalnamespace)
+
+
 def get_app_qt6(*args, **kwargs):
     """Create a new qt6 app or return an existing one."""
     app = QApplication.instance()
@@ -595,18 +674,24 @@ def main():
         shutil.copytree(envs.SETTING_TEMPRATE_DIR, envs.SETTING_DIR)
     plt.style.use(envs.PLTPLOFILE)
 
-    while True:
-        app = get_app_qt6()
-        app.setWindowIcon(QIcon(envs.LOGO))
-        form = MainWindow(filename)
-        form.show()
-        form.raise_()
-        exit_code = app.exec_()
-        filename = form.filepath
-        del(form)
-        del(app)
-        if exit_code != EXIT_CODE_REBOOT:
-            break
+    app = QApplication([])
+    mainwindow = FloatMainWindow(filename)
+    mainwindow.show()
+    mainwindow.raise_()
+    app.exec()
+    # while True:
+    #     app = get_app_qt6()
+    #     app.setWindowIcon(QIcon(envs.LOGO))
+    #     form = FloatMainWindow(filename)
+    #     form.show()
+    #     form.raise_()
+    #     exit_code = app.exec_()
+    #     filename = form.filepath
+    #     del(form)
+    #     del(app)
+    #     if exit_code != EXIT_CODE_REBOOT:
+    #         break
+    savefile.remove_tmpdir()
 
 if __name__ == "__main__":
     main()
