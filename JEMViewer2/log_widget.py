@@ -7,9 +7,8 @@ from PyQt6.QtWidgets import *
 class LogWidget(QListWidget):
     item_added = pyqtSignal()
     inputText = pyqtSignal(str)
-    def __init__(self,parent,ns):
+    def __init__(self,parent):
         super().__init__(parent)
-        self.ns = ns
         self.setAlternatingRowColors(True)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.contextmenu)
@@ -27,14 +26,8 @@ class LogWidget(QListWidget):
         self.item_added.emit()
         return item
 
-    def store(self):
-        lastcommand = self.ns['In'][-1].strip()
+    def store(self, lastcommand):
         if lastcommand == "": return
-        # try:
-        #     previous = self.item(self.count()-1).text().strip()
-        # except:
-        #     previous = ""
-        # if previous != lastcommand:
         self.add_item(lastcommand)
             
     def set(self,log):

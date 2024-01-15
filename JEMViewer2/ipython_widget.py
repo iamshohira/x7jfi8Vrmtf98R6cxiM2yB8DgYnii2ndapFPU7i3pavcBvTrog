@@ -11,7 +11,7 @@ from qtconsole.inprocess import QtInProcessKernelManager
 import qtconsole.styles as styles
 
 class IPythonWidget(RichIPythonWidget):
-    command_finished = pyqtSignal()
+    command_finished = pyqtSignal(str)
     """ Convenience class for a live IPython console widget. We can replace the standard banner using the customBanner argument"""
     def __init__(self,customBanner=None,*args,**kwargs):
         super().__init__(*args,**kwargs)
@@ -75,7 +75,7 @@ class IPythonWidget(RichIPythonWidget):
         return super()._handle_error(msg)
 
     def _on_flush_pending_stream_timer(self):
-        self.command_finished.emit()
+        self.command_finished.emit(self.ns['In'][-1].strip())
         self.error = False
         return super()._on_flush_pending_stream_timer()
 

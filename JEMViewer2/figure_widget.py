@@ -23,6 +23,9 @@ from JEMViewer2.axeslinestool import BoolEdit, AliasButton
 from JEMViewer2.deco_figure import DecoFigure
 from matplotlib import colors as mcolors
 import matplotlib.backends.qt_editor.figureoptions as figopt
+from openpyxl import Workbook
+from openpyxl.chart import ScatterChart, Reference, Series
+from openpyxl.utils.units import pixels_to_EMU
 
 screen_dpi = 72
 
@@ -40,13 +43,17 @@ class MyFigureCanvas(FigureCanvas):
     custom_loader = pyqtSignal(list)
     alias_pasted = pyqtSignal(str,Axes,bool)
     remove_required = pyqtSignal(int)
-    def __init__(self,parent,toolbar,call_as_library, call_from):
-        if call_as_library:
-            self.fig = DecoFigure(call_from, dpi=screen_dpi)
+    def __init__(self, parent, toolbar, call_as_library, call_from, fig=None):
+        if fig != None:
+            self.fig = fig
+            self.fig.set_dpi(screen_dpi)
         else:
-            self.fig = Figure(dpi=screen_dpi)
+            if call_as_library:
+                self.fig = DecoFigure(call_from, dpi=screen_dpi)
+            else:
+                self.fig = Figure(dpi=screen_dpi)
+            self.fig.add_subplot(111)
         self.call_as_library = call_as_library
-        self.fig.add_subplot(111)
         super().__init__(self.fig)
         self.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
         self.setAcceptDrops(True)
@@ -59,6 +66,25 @@ class MyFigureCanvas(FigureCanvas):
         self.mytoolbar = toolbar
         self.setFocusPolicy(Qt.StrongFocus)
         self.close_from_cui = False
+        self.mdi = None
+
+    def set_mdi(self, mdi):
+        self.mdi = mdi
+
+    def magnify(self, percent):
+        base_logical_dpi = screen_dpi * self.device_pixel_ratio
+        newratio = percent / 100
+        currentratio = self.fig.get_dpi() / base_logical_dpi
+        self.fig.set_dpi(base_logical_dpi * newratio)
+        if self.mdi == None:
+            self.resize(self.size() * newratio / currentratio)
+        else:
+            canvassize = self.size()
+            mdisize = self.mdi.size()
+            dw, dh = mdisize.width() - canvassize.width(), mdisize.height() - canvassize.height()
+            w = int(canvassize.width() * newratio / currentratio) + dw
+            h = int(canvassize.height() * newratio / currentratio) + dh
+            self.mdi.resize(w,h)
 
     def set_window_title(self, id, prefix=None):
         if prefix != None:
@@ -196,6 +222,7 @@ class MyFigureCanvas(FigureCanvas):
                 self.parent_.close()
             e.ignore()
 
+
 class DDHandler(QDialog):
     type = "table"
     separator = "space & tab"
@@ -309,8 +336,12 @@ class MyToolbar(QToolBar):
         if tools:
             self.toolitems = (
                 ('Loader', 'Set loader type', os.path.join(envs.RES_DIR,'dd'), 'loader', None),
-                ('Popup', 'Popup figures', os.path.join(envs.RES_DIR,'popup'), 'popup', None),
                 ('AddFigure', 'Add figure', os.path.join(envs.RES_DIR,'addfigure'), 'addfigure', None),
+                ("EnableLineDrag", "Enable line drag", os.path.join(envs.RES_DIR,'linedrag'), 'enable_line_drag', None),
+                (None, None, None, None, None),
+                ('SwitchMode', 'Switch mode', os.path.join(envs.RES_DIR,'switchmode'), 'switch_mode', None),
+                ('Popup', 'Popup figures', os.path.join(envs.RES_DIR,'popup'), 'popup', None),
+                (None, None, None, None, None),
                 ('AxesTool', 'Show AxesTool', os.path.join(envs.RES_DIR,'axestool'), 'axestool', None),
                 ('LinesTool', 'Show LinesTool', os.path.join(envs.RES_DIR,'linestool'), 'linestool', None),
                 (None, None, None, None, None),
@@ -334,6 +365,11 @@ class MyToolbar(QToolBar):
             self.toolitems = (
                 ('Loader', 'Set loader type', os.path.join(envs.RES_DIR,'dd'), 'loader', None),
                 ('AddFigure', 'Add figure', os.path.join(envs.RES_DIR,'addfigure'), 'addfigure', None),
+                ("EnableLineDrag", "Enable line drag", os.path.join(envs.RES_DIR,'linedrag'), 'enable_line_drag', None),
+                (None, None, None, None, None),
+                ('SwitchMode', 'Switch mode', os.path.join(envs.RES_DIR,'switchmode'), 'switch_mode', None),
+                ('Tiling', 'Tiling figures', os.path.join(envs.RES_DIR,'tile'), 'tiling', None),
+                ('Cascading', 'Cascading figures', os.path.join(envs.RES_DIR,'cascade'), 'cascading', None),
                 (None, None, None, None, None),
                 ('Home', 'Reset original view', 'home', 'home', None),
                 ('Back', 'Back to previous view', 'back', 'back', None),
@@ -364,7 +400,7 @@ class MyToolbar(QToolBar):
             else:
                 a = self.addCAction(dummybar._icon(image_file + '.png'), text, callback, rightcallback)
                 self.actions[callback] = a
-                if callback in ['zoom', 'pan']:
+                if callback in ['zoom', 'pan', 'enable_line_drag']:
                     a.setCheckable(True)
                 if tooltip_text is not None:
                     a.setToolTip(tooltip_text)
@@ -389,6 +425,18 @@ class MyToolbar(QToolBar):
 
     def popup(self):
         self.parent.raise_figure_widgets()
+
+    def tiling(self):
+        self.parent.tiling()
+
+    def cascading(self):
+        self.parent.cascading()
+
+    def switch_mode(self):
+        self.parent.switch_mode()
+
+    def enable_line_drag(self):
+        self.parent.linestool.set_line_draggable(self.actions['enable_line_drag'].isChecked())
 
     def linestool(self):
         self.parent.linestool.show()
@@ -448,13 +496,6 @@ class MyToolbar(QToolBar):
         #os.remove(figpath)
 
     def export_data_to_excel(self):
-        try:
-            from openpyxl import Workbook
-            from openpyxl.chart import ScatterChart, Reference, Series
-            from openpyxl.utils.units import pixels_to_EMU
-        except:
-            self.pop_message("openpyxl not installed. Please visit the JEMViewer2 manual page for more information.")
-            return
         marker_map = {
             'point': "dot",
             'pixel': "dot",

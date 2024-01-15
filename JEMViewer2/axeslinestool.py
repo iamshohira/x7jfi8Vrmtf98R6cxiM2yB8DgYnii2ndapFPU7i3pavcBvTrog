@@ -1,5 +1,5 @@
-import os, json
 import re
+import os, json
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
@@ -194,12 +194,15 @@ class AliasButton(QPushButton):
             drag.setPixmap(pixmap)
             drag.exec_(Qt.MoveAction)
 
+
 class LinesTool(QTableWidget):
     line_moved = pyqtSignal()
     alias_clicked = pyqtSignal(str)
     def __init__(self, figs, ns, fixsize = True):
         super().__init__()
+        self.cids = {}
         self.fixsize = fixsize
+        self._line_draggable = False
         # self.header = ["show","figs","axes","lines","alias","zorder","label","memo","line style","width","line color","marker","size","marker color","edge","edge color"]
         self.header = ["show","alias","zorder","label","memo","line style","width","line color","marker","size","marker color","edge","edge color"]
         self.setColumnCount(len(self.header))
@@ -216,6 +219,9 @@ class LinesTool(QTableWidget):
 
     def legend_autoupdate(self, b):
         self._legend_autoupdate = b
+
+    def set_line_draggable(self, bool):
+        self._line_draggable = bool
 
     def fit_size(self):
         if self.fixsize:
@@ -272,8 +278,7 @@ class LinesTool(QTableWidget):
     def load_lines(self):
         self.initialize()
         for h, fig in enumerate(self.figs):
-            if not self.isHidden():
-                self.cids[fig] = fig.canvas.mpl_connect('pick_event', self.on_pick)
+            self.cids[fig] = fig.canvas.mpl_connect('pick_event', self.on_pick)
             for i, ax in enumerate(fig.axes):
                 for j, line in enumerate(ax.lines):
                     self.appendRow()
@@ -416,8 +421,9 @@ class LinesTool(QTableWidget):
         self.load_lines()
 
     def on_pick(self, e):
-        line = e.artist
-        self.aliasbuttons[line].mouseMoveEvent(e.guiEvent)
+        if self._line_draggable:
+            line = e.artist
+            self.aliasbuttons[line].mouseMoveEvent(e.guiEvent)
 
     def closeEvent(self, a0: QCloseEvent) -> None:
         self.initialize()
