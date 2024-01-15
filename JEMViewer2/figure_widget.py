@@ -77,7 +77,10 @@ class MyFigureCanvas(FigureCanvas):
         currentratio = self.fig.get_dpi() / base_logical_dpi
         self.fig.set_dpi(base_logical_dpi * newratio)
         if self.mdi == None:
-            self.resize(self.size() * newratio / currentratio)
+            canvassize = self.size()
+            w = int(canvassize.width() * newratio / currentratio)
+            h = int(canvassize.height() * newratio / currentratio)
+            self.resize(w,h)
         else:
             canvassize = self.size()
             mdisize = self.mdi.size()
