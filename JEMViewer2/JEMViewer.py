@@ -535,24 +535,12 @@ class DockMainWindow(BaseMainWindow):
         self.is_floatmode = False
         self.mdiwindows = {}
         super().__init__(filepath, reboot, widgets, call_as_library, call_from, parent)
-        self._create_sortmenubar()
 
     def reboot(self):
         self._switch_mode(DockMainWindow, reboot=True)
 
     def switch_mode(self):
         self._switch_mode(FloatMainWindow)
-
-    def _create_sortmenubar(self):
-        sortmenu = self.menuBar().addMenu("&Sort")
-        sortmenu.addAction("Cascade")
-        sortmenu.addAction("Tile")
-        def mdiaction(q):
-            if q.text() == "Cascade":
-                self.mdi.cascadeSubWindows()
-            if q.text() == "Tile":
-                self.mdi.tileSubWindows()
-        sortmenu.triggered[QAction].connect(mdiaction)
 
     def _create_main_window(self):
         self.mdi = QMdiArea(self)
