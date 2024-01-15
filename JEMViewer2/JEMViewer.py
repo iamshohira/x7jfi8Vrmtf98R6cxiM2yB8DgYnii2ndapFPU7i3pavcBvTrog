@@ -121,7 +121,7 @@ class BaseMainWindow(QMainWindow):
 
     def _set_update_timer(self):
         if not self.call_as_library:
-            if self.auto_updater.can_update and args.update != None:
+            if self.auto_updater.can_update or args.update != None:
                 self.timer_for_update = QTimer(self)
                 def do_update():
                     self.auto_updater.update(args.update)
