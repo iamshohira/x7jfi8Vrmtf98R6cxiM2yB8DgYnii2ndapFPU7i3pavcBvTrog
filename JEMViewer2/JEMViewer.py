@@ -624,7 +624,7 @@ class FloatMainWindow(BaseMainWindow):
     def __init__(self, filepath, reboot=True, widgets=None, call_as_library = False, call_from = None, parent=None):
         self.is_floatmode = True
         super().__init__(filepath, reboot, widgets, call_as_library, call_from, parent)
-        self.setGeometry(300, 300, 800, 500)
+        self.setGeometry(300, 300, 850, 500)
         self._create_main_window()
 
     def reboot(self):
@@ -635,10 +635,11 @@ class FloatMainWindow(BaseMainWindow):
 
     def _create_main_window(self):
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
-        splitter = QSplitter()
-        splitter.addWidget(self.log_w)
-        splitter.addWidget(self.ipython_w)
-        self.setCentralWidget(splitter)
+        self.splitter = QSplitter()
+        self.log_w.resize(250,250)
+        self.splitter.addWidget(self.log_w)
+        self.splitter.addWidget(self.ipython_w)
+        self.setCentralWidget(self.splitter)
 
     def raise_figure_widgets(self):
         for figure_w in self.figure_widgets:
