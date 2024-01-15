@@ -9,8 +9,8 @@ import webbrowser
 class AutoUpdater:
     # git url
     version_file_url = "https://raw.githubusercontent.com/iamshohira/x7jfi8Vrmtf98R6cxiM2yB8DgYnii2ndapFPU7i3pavcBvTrog/master/JEMViewer2/VERSION"
-    zip_url = "https://github.com/iamshohira/x7jfi8Vrmtf98R6cxiM2yB8DgYnii2ndapFPU7i3pavcBvTrog/archive/refs/heads/master.zip"
-    extractname = "x7jfi8Vrmtf98R6cxiM2yB8DgYnii2ndapFPU7i3pavcBvTrog-master"
+    zip_url = "https://github.com/iamshohira/x7jfi8Vrmtf98R6cxiM2yB8DgYnii2ndapFPU7i3pavcBvTrog/archive/refs/heads/{branch}.zip"
+    extractname = "x7jfi8Vrmtf98R6cxiM2yB8DgYnii2ndapFPU7i3pavcBvTrog-{branch}"
     zipname = "dl.zip"
 
     # path setting
@@ -49,8 +49,8 @@ class AutoUpdater:
         self.lv = lines
         return list(map(int, lines.split(".")))
 
-    def download_zip(self):
-        with request.urlopen(self.zip_url) as df:
+    def download_zip(self, branch):
+        with request.urlopen(self.zip_url.format(branch=branch)) as df:
             data = df.read()
             with open(self.path_zip, "wb") as f:
                 f.write(data)
@@ -59,13 +59,13 @@ class AutoUpdater:
         with ZipFile(self.path_zip) as zp:
             zp.extractall(self.path_app)
 
-    def copy(self):
+    def copy(self, branch):
         shutil.rmtree(self.path_JEM)
-        shutil.move(os.path.join(self.path_extracted,"JEMViewer2"), self.path_JEM)
+        shutil.move(os.path.join(self.path_extracted.format(branch=branch),"JEMViewer2"), self.path_JEM)
 
-    def clean(self):
+    def clean(self, branch):
         os.remove(self.path_zip)
-        shutil.rmtree(self.path_extracted)
+        shutil.rmtree(self.path_extracted.format(branch=branch))
 
     def check_update(self):
         if os.path.exists(self.path_git):
@@ -81,15 +81,15 @@ class AutoUpdater:
             return
         self.can_update = True
 
-    def update(self):
-        if self.can_update:
-            if not self.debug:
-                self.download_zip()
-                self.extract_zip()
-                self.copy()
-                self.clean()
-            self.finish()
-        return self.can_update
+    def update(self, branch):
+        if branch == None:
+            branch = "master"
+        if not self.debug:
+            self.download_zip(branch)
+            self.extract_zip()
+            self.copy(branch)
+            self.clean(branch)
+        self.finish()
 
     def finish(self):
         if self.notion_handler.ok:
@@ -103,5 +103,5 @@ class AutoUpdater:
                 f"Version {self.lv} has been downloaded. The software will now shut down to apply the changes.")
 
 if __name__ == "__main__":
-    updater = AutoUpdater()
-    updater.update()
+    updater = AutoUpdater(None)
+    print(updater.zip_url.format(branch="beta"))

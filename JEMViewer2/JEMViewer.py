@@ -38,6 +38,7 @@ mode = floatstyle
 parser = argparse.ArgumentParser()
 parser.add_argument("filename", nargs='?', default=None, help="input filename")
 parser.add_argument("-l","--local", action="store_true")
+parser.add_argument("-u","--update", default=None, help="force update to the specified version")
 args = parser.parse_args()
 envs.initialize(args)
 DEFAULT_NAMESPACE = {
@@ -70,13 +71,14 @@ class MainWindow(QMainWindow):
             matplotlib.rcParams['savefig.directory'] = (os.path.dirname(filepath))
         if not call_as_library:
             self.auto_updater = AutoUpdater(self.notion_handler)
-            if not self.auto_updater.can_update:
+            if self.auto_updater.can_update or args.update != None:
+                self.timer_for_update = QTimer(self)
+                self.timer_for_update.timeout.connect(self.do_update)
+                self.timer_for_update.start(1000)
+            else:
                 font_manager.fontManager.addfont(ipaexg)
                 font_manager.fontManager.addfont(ipaexm)
             self.ipython_w = IPythonWidget(self.auto_updater.header)
-            self.timer_for_update = QTimer(self)
-            self.timer_for_update.timeout.connect(self.do_update)
-            self.timer_for_update.start(1000)
         else:
             self.ipython_w = IPythonWidget("JEMViewer2 as Python Library\n\n")
             font_manager.fontManager.addfont(ipaexg)
@@ -96,8 +98,8 @@ class MainWindow(QMainWindow):
         self.initialize()
 
     def do_update(self):
-        if self.auto_updater.update():
-            self.close_(True)
+        self.auto_updater.update(args.update)
+        self.close_(True)
         self.timer_for_update.stop()
 
     def print_log(self,item):
