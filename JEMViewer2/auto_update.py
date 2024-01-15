@@ -84,12 +84,15 @@ class AutoUpdater:
     def update(self):
         if self.can_update:
             if not self.debug:
-                self.download_zip()
-                self.extract_zip()
-                self.copy()
-                self.clean()
+                self._update()
             self.finish()
         return self.can_update
+    
+    def _update(self):
+        self.download_zip()
+        self.extract_zip()
+        self.copy()
+        self.clean()
 
     def finish(self):
         if self.notion_handler.ok:
