@@ -18,6 +18,7 @@ exclude_command_list = [
 class Envs():
     RES_DIR = os.path.join(os.path.dirname(__file__),'resources')
     LOGO = os.path.join(os.path.join(RES_DIR,"JEMViewer2.png"))
+    SPLASH = os.path.join(os.path.join(RES_DIR,"splash.png"))
     EXE_DIR = os.path.join(os.path.dirname(__file__))
     ADDON_TEMPRATE_DIR = os.path.join(os.path.dirname(__file__),'home','addon')
     SETTING_TEMPRATE_DIR = os.path.join(os.path.dirname(__file__),'home','setting')

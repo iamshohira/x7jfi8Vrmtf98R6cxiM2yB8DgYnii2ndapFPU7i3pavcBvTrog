@@ -462,9 +462,13 @@ class BaseMainWindow(QMainWindow):
         savefile.set_figure(self.figs)
         self._set_initial_namespace()
         self.update_alias()
+        for figure_w in self.figure_widgets:
+            figure_w.hide()
         if reboot:
             self.timer_for_load = QTimer(self)
             def do_load():
+                # 必ず一回はモード切替えをする
+                self.ipython_w.executeCommand("floatmode()",hidden=True)
                 self._load_helper()
                 self._load_savefile()
                 savefile.save_command(datetime.now().strftime('\n# HEADER %Y-%m-%d %H:%M:%S\n'),alias=False)
@@ -474,6 +478,12 @@ class BaseMainWindow(QMainWindow):
                 self.timer_for_load.stop()
             self.timer_for_load.timeout.connect(do_load)
             self.timer_for_load.start(10)
+        else:
+            # すべて読込み終わった後にshow
+            self.show()
+            for figure_w in self.figure_widgets:
+                figure_w.show()
+            self.raise_()
 
     def direct_edit(self):
         subprocess.run([envs.RUN, savefile.logfilename])
@@ -540,6 +550,7 @@ class DockMainWindow(BaseMainWindow):
         self.is_floatmode = False
         self.mdiwindows = {}
         super().__init__(filepath, reboot, widgets, call_as_library, call_from, parent)
+        self.setGeometry(300, 300, 1600, 1000)
 
     def reboot(self):
         self._switch_mode(DockMainWindow, reboot=True)
@@ -669,9 +680,15 @@ def main():
     plt.style.use(envs.PLTPLOFILE)
 
     app = QApplication([])
+    pixmap = QPixmap(envs.SPLASH)
+    splash = QSplashScreen(pixmap)
+    splash.showMessage("Loading...", alignment=Qt.AlignTop|Qt.AlignLeft, color=Qt.GlobalColor.white)
+    splash.show()
+    app.processEvents()
     mainwindow = FloatMainWindow(filename)
-    mainwindow.show()
-    mainwindow.raise_()
+    splash.finish(mainwindow)
+    # mainwindow.show()
+    # mainwindow.raise_()
     app.exec()
     # while True:
     #     app = get_app_qt6()
