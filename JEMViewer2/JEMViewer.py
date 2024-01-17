@@ -597,10 +597,8 @@ class DockMainWindow(BaseMainWindow):
         additionalnamespace = {
             "add_dock": self.add_dock,
             "add_mdi": self.show_widget,
-            "tiling_windows": self.tiling,
-            "cascading_windows": self.cascading,
-            "notion_handler": self.notion_handler,
-            "mdiwindows": self.mdiwindows,
+            "tiling": self.tiling,
+            "cascading": self.cascading,
         }
         self.ns.update(additionalnamespace)
 
@@ -642,8 +640,15 @@ class FloatMainWindow(BaseMainWindow):
         super()._set_initial_namespace()
         additionalnamespace = {
             "popup": self.raise_figure_widgets,
+            "add_dock": self.show_widget,
+            "add_mdi": self.show_widget,
+            "tiling": self.do_nothing,
+            "cascading": self.do_nothing,
         }
         self.ns.update(additionalnamespace)
+
+    def do_nothing(self):
+        pass
 
 
 def get_app_qt6(*args, **kwargs):
