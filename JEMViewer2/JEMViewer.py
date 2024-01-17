@@ -48,7 +48,7 @@ DEFAULT_NAMESPACE = {
     "os": os,
 }
 
-EXIT_CODE_REBOOT = -11231351
+# EXIT_CODE_REBOOT = -11231351
 ipaexg = os.path.join(envs.RES_DIR, "ipaexg.ttf")
 ipaexm = os.path.join(envs.RES_DIR, "ipaexm.ttf")
 
@@ -62,7 +62,6 @@ class BaseMainWindow(QMainWindow):
         self.call_as_library = call_as_library
         self.call_from = call_from
         self.notion_handler = NotionHandler(envs.SETTING_DIR)
-        self.auto_updater = AutoUpdater(self.notion_handler)
         self._create_menubar()
         self.saved_command = ""
         self.window_id = randomname(4)
@@ -72,9 +71,8 @@ class BaseMainWindow(QMainWindow):
             matplotlib.rcParams['savefig.directory'] = (os.path.dirname(filepath))
         self.toolbar = MyToolbar(self, self.is_floatmode)
         self._load_font()
-        self._set_update_timer()        
         if reboot:
-            header = self.auto_updater.header if not call_as_library else "JEMViewer2 as Python Library\n\n"
+            header = "JEMViewer2\n\n" if not call_as_library else "JEMViewer2 as Python Library\n\n"
             self.ipython_w = IPythonWidget(header)
             self.log_w = LogWidget(self)
             self.figs = []
@@ -115,21 +113,8 @@ class BaseMainWindow(QMainWindow):
             figure_w.magnify(value)
 
     def _load_font(self):
-        # avoid overwriting error for font files when updating
-        if self.call_as_library or not self.auto_updater.can_update:
-            font_manager.fontManager.addfont(ipaexg)
-            font_manager.fontManager.addfont(ipaexm)
-
-    def _set_update_timer(self):
-        if not self.call_as_library:
-            if self.auto_updater.can_update or args.update != None:
-                self.timer_for_update = QTimer(self)
-                def do_update():
-                    self.auto_updater.update(args.update)
-                    self.close_(True)
-                    self.timer_for_update.stop()
-                self.timer_for_update.timeout.connect(do_update)
-                self.timer_for_update.start(1000)
+        font_manager.fontManager.addfont(ipaexg)
+        font_manager.fontManager.addfont(ipaexm)
 
     def _create_menubar(self):
         menubar = self.menuBar()
@@ -689,7 +674,7 @@ def main():
     else:
         pixmap = QPixmap(envs.SPLASH)
         splash = QSplashScreen(pixmap)
-        splash.showMessage("Loading...", alignment=Qt.AlignTop|Qt.AlignLeft, color=Qt.GlobalColor.white)
+        splash.showMessage(f"Version {auto_updater.cv}", alignment=Qt.AlignTop|Qt.AlignLeft, color=Qt.GlobalColor.white)
         splash.show()
         app.processEvents()
         mainwindow = FloatMainWindow(filename)
