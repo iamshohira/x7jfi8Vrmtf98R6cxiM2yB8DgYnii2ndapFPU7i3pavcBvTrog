@@ -590,6 +590,9 @@ class DockMainWindow(BaseMainWindow):
         if order != None:
             for i in order[::-1]:
                 self.figure_widgets[i].setFocus()
+        else:
+            for i in self.mdi.subWindowList(QMdiArea.WindowOrder.StackingOrder)[::-1]:
+                i.setFocus()
         self.mdi.tileSubWindows()
 
     def cascading(self):
@@ -602,6 +605,7 @@ class DockMainWindow(BaseMainWindow):
             "add_mdi": self.show_widget,
             "tiling": self.tiling,
             "cascading": self.cascading,
+            "mdi": self.mdi,
         }
         self.ns.update(additionalnamespace)
 
