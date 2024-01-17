@@ -52,6 +52,15 @@ EXIT_CODE_REBOOT = -11231351
 ipaexg = os.path.join(envs.RES_DIR, "ipaexg.ttf")
 ipaexm = os.path.join(envs.RES_DIR, "ipaexm.ttf")
 
+def update_check():
+    notion_handler = NotionHandler(envs.SETTING_DIR)
+    auto_updater = AutoUpdater(notion_handler)
+    if auto_updater.can_update or args.update != None:
+        auto_updater.update(args.update)
+        return True
+    else:
+        return False
+
 class BaseMainWindow(QMainWindow):
     def __init__(self, filepath, reboot=True, widgets=None, call_as_library = False, call_from = None, parent=None):
         super().__init__(parent)
@@ -680,13 +689,15 @@ def main():
     plt.style.use(envs.PLTPLOFILE)
 
     app = QApplication([])
-    pixmap = QPixmap(envs.SPLASH)
-    splash = QSplashScreen(pixmap)
-    splash.showMessage("Loading...", alignment=Qt.AlignTop|Qt.AlignLeft, color=Qt.GlobalColor.white)
-    splash.show()
-    app.processEvents()
-    mainwindow = FloatMainWindow(filename)
-    splash.finish(mainwindow)
+    reboot_required = update_check()
+    if not reboot_required:
+        pixmap = QPixmap(envs.SPLASH)
+        splash = QSplashScreen(pixmap)
+        splash.showMessage("Loading...", alignment=Qt.AlignTop|Qt.AlignLeft, color=Qt.GlobalColor.white)
+        splash.show()
+        app.processEvents()
+        mainwindow = FloatMainWindow(filename)
+        splash.finish(mainwindow)
     # mainwindow.show()
     # mainwindow.raise_()
     app.exec()
