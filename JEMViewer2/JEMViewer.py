@@ -461,14 +461,19 @@ class BaseMainWindow(QMainWindow):
     def initialize(self, reboot):
         savefile.set_figure(self.figs)
         self._set_initial_namespace()
-        self.update_alias() 
+        self.update_alias()
         if reboot:
-            self._load_helper()
-            self._load_savefile()
-            savefile.save_command(datetime.now().strftime('\n# HEADER %Y-%m-%d %H:%M:%S\n'),alias=False)
-            self._load_user_py()
-            savefile.save_command(datetime.now().strftime('\n# COMMAND LOG %Y-%m-%d %H:%M:%S\n'),alias=False)
-            self.update_alias()
+            self.timer_for_load = QTimer(self)
+            def do_load():
+                self._load_helper()
+                self._load_savefile()
+                savefile.save_command(datetime.now().strftime('\n# HEADER %Y-%m-%d %H:%M:%S\n'),alias=False)
+                self._load_user_py()
+                savefile.save_command(datetime.now().strftime('\n# COMMAND LOG %Y-%m-%d %H:%M:%S\n'),alias=False)
+                self.update_alias()                
+                self.timer_for_load.stop()
+            self.timer_for_load.timeout.connect(do_load)
+            self.timer_for_load.start(10)
 
     def direct_edit(self):
         subprocess.run([envs.RUN, savefile.logfilename])
