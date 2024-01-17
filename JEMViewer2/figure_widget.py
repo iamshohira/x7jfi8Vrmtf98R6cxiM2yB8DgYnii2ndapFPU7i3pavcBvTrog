@@ -448,6 +448,7 @@ class MyToolbar(QToolBar):
 
     def axestool(self):
         self.parent.axestool.show()
+        self.parent.axestool.load_axes()
         self.parent.axestool.raise_()
 
     def addfigure(self):

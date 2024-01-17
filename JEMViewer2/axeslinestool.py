@@ -217,6 +217,9 @@ class LinesTool(QTableWidget):
         self.customContextMenuRequested.connect(self.contextmenu)
         self.legend_autoupdate(True)
 
+    def sizeHint(self):
+        return QSize(150,150)
+
     def legend_autoupdate(self, b):
         self._legend_autoupdate = b
 
@@ -442,6 +445,9 @@ class AxesTool(QTableWidget):
         self.figs = figs
         self.load_axes()
         self.setWindowTitle("AxesTool")
+
+    def sizeHint(self):
+        return QSize(150,150)
 
     def fit_size(self):
         if self.fixsize:
