@@ -586,7 +586,10 @@ class DockMainWindow(BaseMainWindow):
         figure_w = super().remove_figure(id)
         self.mdi.removeSubWindow(self.mdiwindows[figure_w])
 
-    def tiling(self):
+    def tiling(self, order=None):
+        if order != None:
+            for i in order[::-1]:
+                self.figure_widgets[i].setFocus()
         self.mdi.tileSubWindows()
 
     def cascading(self):
