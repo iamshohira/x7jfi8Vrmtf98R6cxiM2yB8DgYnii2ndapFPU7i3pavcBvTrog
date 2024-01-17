@@ -530,6 +530,9 @@ class BaseMainWindow(QMainWindow):
     def floatmode(self):
         self._switch_mode(FloatMainWindow)
 
+    def reboot(self):
+        self.ipython_w.stop()
+
 
 class DockMainWindow(BaseMainWindow):
     def __init__(self, filepath, reboot=True, widgets=None, call_as_library = False, call_from = None, parent=None):
@@ -539,6 +542,7 @@ class DockMainWindow(BaseMainWindow):
         self.setGeometry(300, 300, 1600, 1000)
 
     def reboot(self):
+        super().reboot()
         self._switch_mode(DockMainWindow, reboot=True)
 
     def switch_mode(self):
@@ -623,6 +627,7 @@ class FloatMainWindow(BaseMainWindow):
         self._create_main_window()
 
     def reboot(self):
+        super().reboot()
         self._switch_mode(FloatMainWindow, reboot=True)
 
     def switch_mode(self):
