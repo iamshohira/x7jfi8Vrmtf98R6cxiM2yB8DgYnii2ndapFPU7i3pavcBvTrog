@@ -694,9 +694,9 @@ def main():
         app.processEvents()
         mainwindow = FloatMainWindow(filename)
         splash.finish(mainwindow)
+        app.exec()
     # mainwindow.show()
     # mainwindow.raise_()
-    app.exec()
     # while True:
     #     app = get_app_qt6()
     #     app.setWindowIcon(QIcon(envs.LOGO))
