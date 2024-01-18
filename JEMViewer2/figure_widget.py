@@ -61,7 +61,7 @@ class MyFigureCanvas(FigureCanvas):
         self.setWindowFlags(Qt.Window)
         # self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
         # self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
-        self.mpl_connect('key_press_event',self._keypressevent)
+        self.keycid = self.mpl_connect('key_press_event',self._keypressevent)
         self.parent_ = parent
         self.mytoolbar = toolbar
         self.setFocusPolicy(Qt.StrongFocus)
@@ -202,6 +202,7 @@ class MyFigureCanvas(FigureCanvas):
 
     def close_(self):
         self.close_from_cui = True
+        self.mpl_disconnect(self.keycid)
         self.close()
         
     def closeEvent(self, e):
