@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import *
 class LogWidget(QListWidget):
     item_added = pyqtSignal()
     inputText = pyqtSignal(str)
-    def __init__(self,parent):
+    def __init__(self, parent=None):
         super().__init__(parent)
         self.setAlternatingRowColors(True)
         self.setContextMenuPolicy(Qt.CustomContextMenu)

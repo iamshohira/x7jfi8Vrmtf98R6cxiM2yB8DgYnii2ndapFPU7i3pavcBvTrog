@@ -7,6 +7,13 @@ import matplotlib.backends.qt_editor.figureoptions as figopt
 from matplotlib import colors as mcolors
 from JEMViewer2.file_handler import savefile
 
+def sorted_markers():
+    all_markers = list(figopt.MARKERS.keys())
+    favorite_markers = ["o","^","s","D","p","h","8","*","v","<",">","d","H","P","X","x","+"]
+    sorted_markers = []
+    sorted_markers.extend(favorite_markers)
+    sorted_markers.extend([m for m in all_markers if m not in favorite_markers])
+    return {m:figopt.MARKERS[m] for m in sorted_markers}
 
 class IntEdit(QLineEdit):
     def __init__(self, parent=None, initial=None):
@@ -15,7 +22,7 @@ class IntEdit(QLineEdit):
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setFixedWidth(40)
         self.setValidator(QIntValidator())
-        self.changed = self.textChanged
+        self.changed = self.textEdited
         if initial != None:
             self.setText(str(initial))
     
@@ -28,7 +35,6 @@ class IntEdit(QLineEdit):
     def set(self, value):
         self.setText(str(value))
 
-
 class FloatEdit(QLineEdit):
     def __init__(self, parent=None, initial=None):
         super().__init__(parent)
@@ -36,7 +42,7 @@ class FloatEdit(QLineEdit):
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setFixedWidth(40)
         self.setValidator(QDoubleValidator())
-        self.changed = self.textChanged
+        self.changed = self.textEdited
         if initial != None:
             self.setText(str(initial))
     
@@ -54,7 +60,7 @@ class StrEdit(QLineEdit):
     def __init__(self, parent=None, initial=None):
         super().__init__(parent)
         self.setFrame(False)
-        self.changed = self.textChanged
+        self.changed = self.textEdited
         if initial != None:
             self.setText(initial)
 
@@ -75,7 +81,7 @@ class BoolEdit(QWidget): # centerにalignmentするためにwidgetでラップ
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setContentsMargins(0,0,0,0)
         self.setLayout(layout)
-        self.checkbox.stateChanged.connect(self.changed.emit)
+        self.checkbox.clicked.connect(self.changed.emit)
         if initial != None:
             self.checkbox.setChecked(initial)
 
@@ -86,7 +92,8 @@ class BoolEdit(QWidget): # centerにalignmentするためにwidgetでラップ
         self.checkbox.setChecked(value)
 
 class ColorButton(QPushButton):
-    colorPicked = pyqtSignal(str)
+    colorChanged = pyqtSignal(str)
+    changed = pyqtSignal(str)
     def __init__(self, inicolor):
         super().__init__()
         self.clicked.connect(self._call)
@@ -96,23 +103,25 @@ class ColorButton(QPushButton):
         color = QColorDialog().getColor(QColor(self.color))
         color = color.name()
         self.set_color(color)
-        self.colorPicked.emit(self.color)
 
-    def set_color(self, color):
+    def set_color(self, color, emit=True):
         if bool(re.fullmatch(r"^#([\da-fA-F]{6})$",color)):
             self.color = color
             stylesheet = "background-color: %s;border: 1px solid; border-color: gray" % color
             self.setStyleSheet(stylesheet)
+            self.colorChanged.emit(self.color)
+            if emit:
+                self.changed.emit(self.color)
 
 class ColorString(StrEdit):
-    textChanged_ = pyqtSignal(str)
+    textEdited_ = pyqtSignal(str)
 
     def __init__(self, ns, parent=None, initial=None):
         super().__init__(parent, initial)
         self.ns = ns
-        self.textChanged.connect(self._text_changed)
+        self.textEdited.connect(self._text_edited)
     
-    def _text_changed(self, color):
+    def _text_edited(self, color):
         if self.ns != None:
             if color in self.ns.keys():
                 obj = self.ns[color]
@@ -120,7 +129,7 @@ class ColorString(StrEdit):
                     if obj[0] == "#":
                         color = obj
                         self.setText(color)
-        self.textChanged_.emit(color)
+        self.textEdited_.emit(color)
         
 class ColorEdit(QWidget):
     changed = pyqtSignal()
@@ -129,8 +138,8 @@ class ColorEdit(QWidget):
         self.edit = ColorString(ns, initial=initial)
         self.edit.setFixedWidth(60)
         self.btn = ColorButton(inicolor=initial)
-        self.btn.colorPicked.connect(lambda color: self.edit.setText(color))
-        self.edit.textChanged_.connect(self.btn.set_color)
+        self.btn.colorChanged.connect(lambda color: self.edit.setText(color))
+        self.edit.textEdited_.connect(self.btn.set_color)
         self.btn.setFixedWidth(20)
         layout = QHBoxLayout()
         layout.addWidget(self.edit)
@@ -138,27 +147,37 @@ class ColorEdit(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setContentsMargins(0,0,0,0)
         self.setLayout(layout)
-        self.edit.textChanged.connect(self.changed.emit)
+        self.btn.changed.connect(self.changed.emit)
 
     def value(self):
         return self.btn.color
     
+    def set(self, value):
+        self.btn.set_color(value, emit=False)
+        
+
 class ComboEdit(QComboBox):
     def __init__(self, parent=None, dict=None, initial=None):
         super().__init__(parent)
         self.dict = dict
         self.invdict = {v:k for k,v in dict.items()}
+        self.keyorder = list(self.invdict.keys())
         if dict != None:
             self.addItems(self.invdict.keys())
         if initial != None:
             self.setCurrentText(self.dict[initial])
-        self.changed = self.currentIndexChanged
+        self.changed = self.activated
     
     def value(self):
         return self.invdict[self.currentText()]
 
     def set(self, value):
-        self.setCurrentText(value)
+        self.setCurrentText(self.dict[value])
+
+    def set_by_order(self, id_):
+        i = id_ % len(self.keyorder)
+        self.setCurrentText(self.keyorder[i])
+
 
 class IntComboEdit(QComboBox):
     def __init__(self, parent=None, max=None, initial=None):
@@ -167,7 +186,7 @@ class IntComboEdit(QComboBox):
             self.addItems([str(i) for i in range(max)])
         if initial != None:
             self.setCurrentIndex(initial)
-        self.changed = self.currentIndexChanged
+        self.changed = self.activated
     
     def value(self):
         return self.currentIndex()
@@ -195,36 +214,30 @@ class AliasButton(QPushButton):
             drag.exec_(Qt.MoveAction)
 
 
-class LinesTool(QTableWidget):
-    line_moved = pyqtSignal()
-    alias_clicked = pyqtSignal(str)
-    def __init__(self, figs, ns, fixsize = True):
+class BaseTool(QTableWidget):
+    def __init__(self, figs, ns, header, title, fixsize = True):
         super().__init__()
-        self.cids = {}
         self.fixsize = fixsize
-        self._line_draggable = False
-        # self.header = ["show","figs","axes","lines","alias","zorder","label","memo","line style","width","line color","marker","size","marker color","edge","edge color"]
-        self.header = ["show","alias","zorder","label","memo","line style","width","line color","marker","size","marker color","edge","edge color"]
+        self.header = header
         self.setColumnCount(len(self.header))
         self.setHorizontalHeaderLabels(self.header)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContentsOnFirstShow)
         self.figs = figs
         self.ns = ns
-        self.load_lines()
-        self.setWindowTitle("LinesTool")
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.contextmenu)
-        self.legend_autoupdate(True)
+        self.setWindowTitle(title)
+        # change header text color to red if selected
+        self.verticalHeader().setStyleSheet("QHeaderView::section:checked{background-color:rgb(0,107,56); color:rgb(255,255,255); font-weight:bold;}")
+        self.setStyleSheet("QTableWidget::item:selected{background-color:transparent;};QTableWidget::item{selection-background-color:transparent;}")
+
+    def _allset(self, column):
+        if self.rowCount() == 0: return
+        for irow in range(1,self.rowCount()):
+            self.cellWidget(irow,column).set(self.cellWidget(0,column).value())
+            self._update(irow, column)
 
     def sizeHint(self):
         return QSize(150,150)
-
-    def legend_autoupdate(self, b):
-        self._legend_autoupdate = b
-
-    def set_line_draggable(self, bool):
-        self._line_draggable = bool
 
     def fit_size(self):
         if self.fixsize:
@@ -254,10 +267,10 @@ class LinesTool(QTableWidget):
             obj = IntComboEdit(initial=initial,max=max)
         elif type == "alias":
             obj = AliasButton(initial=initial)
-            obj.clicked.connect(lambda: self.alias_clicked.emit(obj.text()))
         elif type == "color":
             obj = ColorEdit(initial=initial, ns=self.ns)
         obj.row = self.row_id
+        obj.column = self.column_id
         obj.changed.connect(self.update)
         self.setCellWidget(self.row_id, self.column_id, obj)
         return obj
@@ -271,6 +284,75 @@ class LinesTool(QTableWidget):
         self.setRowCount(0)
         self.row_id = -1
         self.column_id = -1
+
+    def selectedLows(self):
+        l = [i.row() for i in self.selectedIndexes()]
+        return list(set(l))
+        # return [i.row() for i in self.selectionModel().selectedRows()]
+                
+    def update(self):
+        irow = self.sender().row
+        icol = self.sender().column
+        self._update(irow, icol)
+        sl = self.selectedLows()
+        if irow in sl:
+            for jrow in sl:
+                if jrow == irow: continue
+                self.cellWidget(jrow,icol).set(self.cellWidget(irow,icol).value())
+                self._update(jrow, icol)
+
+    def gui_call(self, function_name, *args, **kwargs):
+        savefile.save_emulate_command(function_name, *args, **kwargs)
+        f = getattr(self, function_name)
+        f(*args, **kwargs)
+    
+
+class LinesTool(BaseTool):
+    line_moved = pyqtSignal()
+    alias_clicked = pyqtSignal(str)
+    def __init__(self, figs, ns, fixsize = True):
+        header = ["show","alias","zorder","label","memo","line style","width","line color","marker","size","marker color","edge","edge color"]
+        title = "LinesTool"
+        super().__init__(figs, ns, header, title, fixsize)
+        self.cids = {}
+        self._line_draggable = False
+        self.load_lines()
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.contextmenu)
+        self.legend_autoupdate(True)
+        self.horizontalHeader().sectionClicked.connect(self.allset)
+
+    def allset(self, column):
+        # show context menu
+        if self.header[column] in ['alias']: return
+        menu = QMenu(self)
+        allset_action = menu.addAction('Copy 1 to all')
+        allset_action.triggered.connect(lambda: self._allset(column))
+        if self.header[column] == "marker":
+            allset_action = menu.addAction('Sequential set')
+            allset_action.triggered.connect(lambda: self.sequential_set(column))
+        menu.exec_(QCursor.pos())
+
+    def sequential_set(self, column):
+        if self.rowCount() == 0: return
+        for irow in range(self.rowCount()):
+            self.cellWidget(irow, column).set_by_order(irow)
+            self._update(irow, column)
+
+    def legend_autoupdate(self, b):
+        self._legend_autoupdate = b
+
+    def set_line_draggable(self, bool):
+        self._line_draggable = bool
+
+    def appendCellWidgetToColumn(self,type,initial=None,dict=None,max=None,readonly=False):
+        obj = super().appendCellWidgetToColumn(type,initial,dict,max,readonly)
+        if type == "alias":
+            obj.clicked.connect(lambda: self.alias_clicked.emit(obj.text()))
+        return obj
+        
+    def initialize(self):
+        super().initialize()
         self.lines = []
         self.aliasbuttons = {}
         for fig in self.figs:
@@ -287,12 +369,6 @@ class LinesTool(QTableWidget):
                     self.appendRow()
                     # visible
                     self.appendCellWidgetToColumn("bool", initial=line.get_visible())
-                    # axes
-                    #self.appendCellWidgetToColumn("intcombo", max=len(self.figs), initial=h)
-                    # axes
-                    #self.appendCellWidgetToColumn("intcombo", max=len(fig.axes), initial=i)
-                    # lines
-                    #self.appendCellWidgetToColumn("int", initial=j, readonly=True)
                     # lines
                     btn = self.appendCellWidgetToColumn("alias", initial=f"fig{h}ax{i}l{j}")
                     self.aliasbuttons[line] = btn
@@ -310,7 +386,7 @@ class LinesTool(QTableWidget):
                     color = mcolors.to_hex(mcolors.to_rgb(line.get_color()))
                     self.appendCellWidgetToColumn("color", initial=color)
                     # marker
-                    self.appendCellWidgetToColumn("combo", initial=line.get_marker(), dict=figopt.MARKERS)
+                    self.appendCellWidgetToColumn("combo", initial=line.get_marker(), dict=sorted_markers())
                     # markersize
                     self.appendCellWidgetToColumn("float", initial=line.get_markersize())
                     # markerfacecolor
@@ -325,18 +401,12 @@ class LinesTool(QTableWidget):
                     line.set_picker(5)
         self.resizeColumnsToContents()
         self.fit_size()
-                
-    def update(self):
-        irow = self.sender().row
+
+    def _update(self, irow, _):
         values = {h:self.cellWidget(irow,icol).value() for icol, h in enumerate(self.header)}
         line = self.lines[irow]
         self.gui_call("set_lineproperties", line, values)
         line.axes.figure.canvas.draw()
-
-    def gui_call(self, function_name, *args, **kwargs):
-        savefile.save_emulate_command(function_name, *args, **kwargs)
-        f = getattr(self, function_name)
-        f(*args, **kwargs)
         
     def set_lineproperties(self, line, values):
         if type(line) == dict:
@@ -428,78 +498,39 @@ class LinesTool(QTableWidget):
             line = e.artist
             self.aliasbuttons[line].mouseMoveEvent(e.guiEvent)
 
-    def closeEvent(self, a0: QCloseEvent) -> None:
-        self.initialize()
-        return super().closeEvent(a0)
+    # def closeEvent(self, a0: QCloseEvent) -> None:
+    #     self.initialize()
+    #     return super().closeEvent(a0)
+    
+    def show(self):
+        super().show()
+        self.load_lines()
 
 
-class AxesTool(QTableWidget):
+class AxesTool(BaseTool):
     def __init__(self, figs, fixsize = True):
-        super().__init__()
-        self.fixsize = fixsize
-        self.header = ["figs","axes","title","xlabel","ylabel","xmin","xmax","xscale","ymin","ymax","yscale"]
-        self.setColumnCount(len(self.header))
-        self.setHorizontalHeaderLabels(self.header)
-        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContentsOnFirstShow)
-        self.figs = figs
+        header = ["figs","axes","title","xlabel","ylabel","xmin","xmax","xscale","ymin","ymax","yscale"]
+        title = "AxesTool"
+        super().__init__(figs, None, header, title, fixsize)
         self.load_axes()
-        self.setWindowTitle("AxesTool")
+        self.horizontalHeader().sectionClicked.connect(self.allset)
 
-    def sizeHint(self):
-        return QSize(150,150)
+    def allset(self, column):
+        # show context menu
+        if self.header[column] in ['figs', 'axes']: return
+        menu = QMenu(self)
+        allset_action = menu.addAction('Copy 1 to all')
+        allset_action.triggered.connect(lambda: self._allset(column))
+        menu.exec_(QCursor.pos())
 
-    def fit_size(self):
-        if self.fixsize:
-            self.setMinimumWidth(self.horizontalHeader().length()+40)
-            self.setMaximumWidth(self.horizontalHeader().length()+40)
-            self.setMinimumWidth(100)
-            height = self.verticalHeader().length()+40
-            height = height if height < 400 else 400
-            self.setMinimumHeight(height)
-            self.setMaximumHeight(self.verticalHeader().length()+40)
-            self.setMinimumWidth(100)
-        
     def appendCellWidgetToColumn(self,type,initial=None,dict=None,max=None,readonly=False):
-        self.column_id += 1
-        if type == "int":
-            obj = IntEdit(initial=initial)
-            obj.setReadOnly(readonly)
-            obj.editingFinished.connect(self.quick_set)
-        elif type == "float":
-            obj = FloatEdit(initial=initial)
+        obj = super().appendCellWidgetToColumn(type,initial,dict,max,readonly)
+        if type == "float":
             obj.setFixedWidth(60)
-            obj.editingFinished.connect(self.quick_set)
         elif type == "str":
-            obj = StrEdit(initial=initial)
             obj.setFixedWidth(150)
-            obj.editingFinished.connect(self.quick_set)
-        elif type == "bool":
-            obj = BoolEdit(initial=initial)
-        elif type == "combo":
-            obj = ComboEdit(initial=initial,dict=dict)
-        elif type == "intcombo":
-            obj = IntComboEdit(initial=initial,max=max)
-        elif type == "alias":
-            obj = AliasButton(initial=initial)
-        elif type == "color":
-            obj = ColorEdit(initial=initial)
-        obj.row = self.row_id
-        obj.changed.connect(self.update)
-        if type == "combo": obj.changed.connect(self.quick_set)
-        self.setCellWidget(self.row_id, self.column_id, obj)
+        return obj
         
-    def appendRow(self):
-        self.row_id += 1
-        self.insertRow(self.row_id)
-        self.column_id = -1
-        
-    def initialize(self):
-        self.setRowCount(0)
-        self.row_id = -1
-        self.column_id = -1
-        self.lines = []
-
     def load_axes(self):
         self.initialize()
         for h, fig in enumerate(self.figs):
@@ -530,23 +561,31 @@ class AxesTool(QTableWidget):
         self.resizeColumnsToContents()
         self.fit_size()
 
-    def quick_set(self):
+    def quick_set_own(self, row, col):
+        figid = self.cellWidget(row,0).value()
+        axid = self.cellWidget(row,1).value()
+        ax = self.figs[figid].axes[axid]
+        data = [
+            ax.get_title(),
+            ax.get_xlabel(),
+            ax.get_ylabel(),
+            ax.get_xlim()[0],
+            ax.get_xlim()[1],
+            ax.get_xscale(),
+            ax.get_ylim()[0],
+            ax.get_ylim()[1],
+            ax.get_yscale()
+        ]
+        for i, d in enumerate(data):
+            if i == col - 2: continue
+            self.cellWidget(row,i+2).set(d)
+
+    def quick_set_others(self, called_row, called_col):
         for irow in range(self.rowCount()):
-            figid = self.cellWidget(irow,0).value()
-            axid = self.cellWidget(irow,1).value()
-            ax = self.figs[figid].axes[axid]
-            self.cellWidget(irow,2).set(ax.get_title())
-            self.cellWidget(irow,3).set(ax.get_xlabel())
-            self.cellWidget(irow,4).set(ax.get_ylabel())
-            self.cellWidget(irow,5).set(ax.get_xlim()[0])
-            self.cellWidget(irow,6).set(ax.get_xlim()[1])
-            self.cellWidget(irow,7).set(ax.get_xscale())
-            self.cellWidget(irow,8).set(ax.get_ylim()[0])
-            self.cellWidget(irow,9).set(ax.get_ylim()[1])
-            self.cellWidget(irow,10).set(ax.get_yscale())
-                
-    def update(self):
-        irow = self.sender().row
+            if irow == called_row: continue
+            self.quick_set_own(irow, -1)
+
+    def _update(self, irow, jcol):
         values = {h:self.cellWidget(irow,icol).value() for icol, h in enumerate(self.header)}
         if values["xmin"] <= 0 and values["xscale"] == "log":
             values["xmin"] = 1e-6
@@ -555,21 +594,23 @@ class AxesTool(QTableWidget):
         if values["xmax"] <= 0 and values["xscale"] == "log":
             values["xmax"] = 1.0
         if values["ymax"] <= 0 and values["yscale"] == "log":
-            values["ymax"] = 1.0            
+            values["ymax"] = 1.0
+        if values["xmin"] == values["xmax"] or values["ymin"] == values["ymax"]:
+            return
         try:
             self.gui_call("set_axesproperties", values)
             self.figs[values["figs"]].canvas.draw()
         except:
             pass
+        self.quick_set_own(irow, jcol)
+
+    def update(self):
+        super().update()
+        self.quick_set_others(self.sender().row, self.sender().column)
 
     def show(self):
-        self.load_axes()
         super().show()
-
-    def gui_call(self, function_name, *args, **kwargs):
-        f = getattr(self, function_name)
-        f(*args, **kwargs)
-        savefile.save_emulate_command(function_name, *args, **kwargs)
+        self.load_axes()
 
     def set_axesproperties(self, values):
         ax = self.figs[values["figs"]].axes[values["axes"]]

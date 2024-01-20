@@ -375,6 +375,9 @@ class MyToolbar(QToolBar):
                 ('Tiling', 'Tiling figures', os.path.join(envs.RES_DIR,'tile'), 'tiling', None),
                 ('Cascading', 'Cascading figures', os.path.join(envs.RES_DIR,'cascade'), 'cascading', None),
                 (None, None, None, None, None),
+                ('AxesTool', 'Show AxesTool', os.path.join(envs.RES_DIR,'axestool'), 'axestool', None),
+                ('LinesTool', 'Show LinesTool', os.path.join(envs.RES_DIR,'linestool'), 'linestool', None),
+                (None, None, None, None, None),
                 ('Home', 'Reset original view', 'home', 'home', None),
                 ('Back', 'Back to previous view', 'back', 'back', None),
                 ('Forward', 'Forward to next view', 'forward', 'forward', None),
@@ -443,14 +446,10 @@ class MyToolbar(QToolBar):
         self.parent.linestool.set_line_draggable(self.actions['enable_line_drag'].isChecked())
 
     def linestool(self):
-        self.parent.linestool.show()
-        self.parent.linestool.load_lines()
-        self.parent.linestool.raise_()
+        self.parent.show_linestool()
 
     def axestool(self):
-        self.parent.axestool.show()
-        self.parent.axestool.load_axes()
-        self.parent.axestool.raise_()
+        self.parent.show_axestool()
 
     def addfigure(self):
         self.parent.add_figure()

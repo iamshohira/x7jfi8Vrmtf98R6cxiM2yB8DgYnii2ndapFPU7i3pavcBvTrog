@@ -30,11 +30,6 @@ if os.name == "nt": #windows
     plugin_path = os.path.join(dirname, "Qt6", "plugins", "platforms")
     os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = plugin_path
 
-floatstyle = "Floating style"
-dockstyle = "Docking style"
-modes = [floatstyle, dockstyle]
-mode = floatstyle
-
 parser = argparse.ArgumentParser()
 parser.add_argument("filename", nargs='?', default=None, help="input filename")
 parser.add_argument("-l","--local", action="store_true")
@@ -48,13 +43,11 @@ DEFAULT_NAMESPACE = {
     "os": os,
 }
 
-# EXIT_CODE_REBOOT = -11231351
 ipaexg = os.path.join(envs.RES_DIR, "ipaexg.ttf")
 ipaexm = os.path.join(envs.RES_DIR, "ipaexm.ttf")
 
-
 class BaseMainWindow(QMainWindow):
-    def __init__(self, filepath, reboot=True, widgets=None, call_as_library = False, call_from = None, parent=None):
+    def __init__(self, filepath, ipython_w = None, reboot=True, widgets=None, call_as_library=False, call_from=None, parent=None):
         super().__init__(parent)
         self.setAcceptDrops(True)
         self._set_statusbar()
@@ -71,13 +64,15 @@ class BaseMainWindow(QMainWindow):
             matplotlib.rcParams['savefig.directory'] = (os.path.dirname(filepath))
         self.toolbar = MyToolbar(self, self.is_floatmode)
         self._load_font()
-        if reboot:
+        if ipython_w is None:
             header = "JEMViewer2\n\n" if not call_as_library else "JEMViewer2 as Python Library\n\n"
             self.ipython_w = IPythonWidget(header)
-            self.log_w = LogWidget(self)
+        else:
+            self.ipython_w = ipython_w
+        if reboot:
+            self.log_w = LogWidget()
             self.figs = []
         else:
-            self.ipython_w = widgets["ipython"]
             self.log_w = widgets["log"]
             self.figs = widgets["figures"]
         self.figure_widgets = []
@@ -337,13 +332,6 @@ class BaseMainWindow(QMainWindow):
         self.filepath = filepath[0]
         self.reboot()
 
-    # def reboot(self,force=False):
-    #     for figure_w in self.figure_widgets:
-    #         figure_w.close_()
-    #     self.ipython_w.stop()
-    #     self.close_(force)
-    #     get_app_qt6().exit(EXIT_CODE_REBOOT)
-
     def _set_windowname(self):
         self.setWindowTitle(os.path.basename(self.filepath))
         for i, figure_w in enumerate(self.figure_widgets):
@@ -516,11 +504,10 @@ class BaseMainWindow(QMainWindow):
     def _switch_mode(self, MainWindowClass, reboot=False):
         self._remove_slot()
         widgets = {
-            "ipython": self.ipython_w,
             "log": self.log_w,
             "figures": self.figs,
         }
-        new = MainWindowClass(self.filepath, reboot=reboot, widgets=widgets, call_as_library=self.call_as_library, call_from=self.call_from)
+        new = MainWindowClass(self.filepath, ipython_w=self.ipython_w, reboot=reboot, widgets=widgets, call_as_library=self.call_as_library, call_from=self.call_from)
         new.show()
         self.close_(True)
 
@@ -531,14 +518,14 @@ class BaseMainWindow(QMainWindow):
         self._switch_mode(FloatMainWindow)
 
     def reboot(self):
-        self.ipython_w.stop()
+        self.ipython_w.reset_session()
 
 
 class DockMainWindow(BaseMainWindow):
-    def __init__(self, filepath, reboot=True, widgets=None, call_as_library = False, call_from = None, parent=None):
+    def __init__(self, filepath, ipython_w=None, reboot=True, widgets=None, call_as_library = False, call_from = None, parent=None):
         self.is_floatmode = False
         self.mdiwindows = {}
-        super().__init__(filepath, reboot, widgets, call_as_library, call_from, parent)
+        super().__init__(filepath, ipython_w, reboot, widgets, call_as_library, call_from, parent)
         self.setGeometry(300, 300, 1600, 1000)
 
     def reboot(self):
@@ -552,20 +539,19 @@ class DockMainWindow(BaseMainWindow):
         self.mdi = QMdiArea(self)
         self.mdi.setActivationOrder(QMdiArea.WindowOrder.StackingOrder)
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, self.toolbar)
-        self.add_essential_dock("console", self.ipython_w, Qt.DockWidgetArea.LeftDockWidgetArea)
-        self.add_essential_dock("log", self.log_w, Qt.DockWidgetArea.LeftDockWidgetArea)
-        self.add_essential_dock("axestool",self.axestool, Qt.DockWidgetArea.BottomDockWidgetArea)
-        self.add_essential_dock("linestool",self.linestool, Qt.DockWidgetArea.BottomDockWidgetArea)
+        self.add_dock(self.ipython_w, "console", "left", essential=True)
+        self.add_dock(self.log_w, "log", "left", essential=True)
+        self.axesdock = self.add_dock(self.axestool, "axestool", "bottom")
+        self.linesdock = self.add_dock(self.linestool, "linestool", "bottom")
         self.setCentralWidget(self.mdi)
 
-    def add_essential_dock(self, title, wid, pos):
-        dock = QDockWidget(title, self)
-        dock.setWidget(wid)
-        self.addDockWidget(pos, dock)
-        dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable )
-        return dock
+    def show_axestool(self):
+        self.axesdock.show()
+
+    def show_linestool(self):
+        self.linesdock.show()
     
-    def add_dock(self, wid, title="", pos="right"):
+    def add_dock(self, wid, title="", pos="right", essential=False):
         posdic = {
             "top": Qt.DockWidgetArea.TopDockWidgetArea,
             "left": Qt.DockWidgetArea.LeftDockWidgetArea,
@@ -575,6 +561,9 @@ class DockMainWindow(BaseMainWindow):
         dock = QDockWidget(title, self)
         dock.setWidget(wid)
         self.addDockWidget(posdic[pos], dock)
+        if essential:
+            dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetFloatable | QDockWidget.DockWidgetFeature.DockWidgetMovable )
+        return dock
 
     def show_widget(self, widget, title=None):
         sub = QMdiSubWindow()
@@ -620,9 +609,9 @@ class DockMainWindow(BaseMainWindow):
 
 
 class FloatMainWindow(BaseMainWindow):
-    def __init__(self, filepath, reboot=True, widgets=None, call_as_library = False, call_from = None, parent=None):
+    def __init__(self, filepath, ipython_w=None, reboot=True, widgets=None, call_as_library = False, call_from = None, parent=None):
         self.is_floatmode = True
-        super().__init__(filepath, reboot, widgets, call_as_library, call_from, parent)
+        super().__init__(filepath, ipython_w, reboot, widgets, call_as_library, call_from, parent)
         self.setGeometry(300, 300, 850, 500)
         self._create_main_window()
 
@@ -632,6 +621,14 @@ class FloatMainWindow(BaseMainWindow):
 
     def switch_mode(self):
         self._switch_mode(DockMainWindow)
+
+    def show_axestool(self):
+        self.axestool.show()
+        self.axestool.raise_()
+
+    def show_linestool(self):
+        self.linestool.show()
+        self.linestool.raise_()
 
     def _create_main_window(self):
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
@@ -663,15 +660,6 @@ class FloatMainWindow(BaseMainWindow):
         pass
 
 
-def get_app_qt6(*args, **kwargs):
-    """Create a new qt6 app or return an existing one."""
-    app = QApplication.instance()
-    if app is None:
-        if not args:
-            args = ([''],)
-        app = QApplication(*args, **kwargs)
-    return app
-
 def main():
     filename = args.filename
     os.makedirs(envs.JEMDIR, exist_ok=True)
@@ -697,20 +685,6 @@ def main():
         mainwindow = FloatMainWindow(filename)
         splash.finish(mainwindow)
         app.exec()
-    # mainwindow.show()
-    # mainwindow.raise_()
-    # while True:
-    #     app = get_app_qt6()
-    #     app.setWindowIcon(QIcon(envs.LOGO))
-    #     form = FloatMainWindow(filename)
-    #     form.show()
-    #     form.raise_()
-    #     exit_code = app.exec_()
-    #     filename = form.filepath
-    #     del(form)
-    #     del(app)
-    #     if exit_code != EXIT_CODE_REBOOT:
-    #         break
     savefile.remove_tmpdir()
 
 if __name__ == "__main__":
