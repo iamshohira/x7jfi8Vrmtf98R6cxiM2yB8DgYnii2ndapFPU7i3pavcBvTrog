@@ -5,7 +5,10 @@ from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 import matplotlib.backends.qt_editor.figureoptions as figopt
 from matplotlib import colors as mcolors
-from JEMViewer2.file_handler import savefile
+from JEMViewer2.file_handler import savefile, envs
+import JEMViewer2.stylesheet as ss
+from JEMViewer2.basetoolbar import BaseToolbar
+from matplotlib.text import Text
 
 def sorted_markers():
     all_markers = list(figopt.MARKERS.keys())
@@ -227,8 +230,8 @@ class BaseTool(QTableWidget):
         self.ns = ns
         self.setWindowTitle(title)
         # change header text color to red if selected
-        self.verticalHeader().setStyleSheet("QHeaderView::section:checked{background-color:rgb(0,107,56); color:rgb(255,255,255); font-weight:bold;}")
-        self.setStyleSheet("QTableWidget::item:selected{background-color:transparent;};QTableWidget::item{selection-background-color:transparent;}")
+        self.verticalHeader().setStyleSheet(ss.headerview)
+        self.setStyleSheet(ss.tablewidget)
 
     def _allset(self, column):
         if self.rowCount() == 0: return
@@ -621,3 +624,258 @@ class AxesTool(BaseTool):
         ax.set_ylabel(values["ylabel"])
         ax.set_ylim((values["ymin"],values["ymax"]))
         ax.set_yscale(values["yscale"])
+
+
+class TextsTable(BaseTool):
+    va_choices = ["top","center_baseline","center","baseline","bottom"]
+    ha_choices = ["left","center","right"]
+    def __init__(self, figs, parent, fixsize = True):
+        header = ["show","figs","text","x","y","va","ha","color","rotation"]
+        title = "TextsTool"
+        self.parent = parent
+        super().__init__(figs, None, header, title, fixsize)
+        self.load_texts()
+        self.horizontalHeader().sectionClicked.connect(self.allset)
+
+    def allset(self, column):
+        # show context menu
+        menu = QMenu(self)
+        allset_action = menu.addAction('Copy 1 to all')
+        allset_action.triggered.connect(lambda: self._allset(column))
+        menu.exec_(QCursor.pos())
+
+    def initialize(self):
+        super().initialize()
+        self.texts = []
+
+    def figs_list(self):
+        l = {}
+        for i, fig in enumerate(self.figs):
+            l[fig] = f"fig{i}"
+        return l
+        
+    def load_texts(self):
+        self.initialize()
+        figs_list = self.figs_list()
+        for h, fig in enumerate(self.figs):
+            # self.cids[fig] = fig.canvas.mpl_connect('pick_event', self.on_pick)
+            for j, text in enumerate(fig.texts):
+                self.appendRow()
+                # visible
+                self.appendCellWidgetToColumn("bool", initial=text.get_visible())
+                # figs
+                self.appendCellWidgetToColumn("combo", initial=fig, dict=figs_list)
+                # text
+                self.appendCellWidgetToColumn("str", initial=text.get_text())
+                x, y = text.get_position()
+                # x
+                self.appendCellWidgetToColumn("float", initial=x)
+                # y
+                self.appendCellWidgetToColumn("float", initial=y)
+                # va
+                self.appendCellWidgetToColumn("combo", initial=text.get_va(), dict={v:v for v in self.va_choices})
+                # ha
+                self.appendCellWidgetToColumn("combo", initial=text.get_ha(), dict={v:v for v in self.ha_choices})
+                # color
+                color = mcolors.to_hex(mcolors.to_rgb(text.get_color()))
+                self.appendCellWidgetToColumn("color", initial=color)
+                # rotation
+                self.appendCellWidgetToColumn("float", initial=text.get_rotation())
+                self.texts.append(text)
+        self.resizeColumnsToContents()
+        self.fit_size()
+
+    def _update(self, irow, _):
+        values = {h:self.cellWidget(irow,icol).value() for icol, h in enumerate(self.header)}
+        text = self.texts[irow]
+        new_fig = values.pop("figs")
+        self.gui_call("set_textproperties", text, values)
+        old_fig = text.figure
+        if old_fig != new_fig:
+            self.gui_call("move_text", text, new_fig, delete=True)
+            old_fig.canvas.draw()
+        new_fig.canvas.draw()
+
+    def set_textproperties(self, text, values):
+        if type(text) == dict:
+            text = savefile.dict_to_mpl(text)
+        text.set_visible(values["show"])
+        text.set_text(values["text"])
+        text.set_position((values["x"], values["y"]))
+        text.set_va(values["va"])
+        text.set_ha(values["ha"])
+        text.set_color(values["color"])
+        text.set_rotation(values["rotation"])
+
+    def move_text(self, old_text, new_fig, delete=True):
+        if type(old_text) == dict:
+            old_text = savefile.dict_to_mpl(old_text)
+        if new_fig != None:
+            if type(new_fig) == dict:
+                new_fig = savefile.dict_to_mpl(new_fig)
+            new_text = new_fig.text(*old_text.get_position(), old_text.get_text(), picker=True)
+            new_text.set_visible(old_text.get_visible())
+            new_text.set_zorder(old_text.get_zorder())
+            new_text.set_va(old_text.get_va())
+            new_text.set_ha(old_text.get_ha())
+            new_text.set_color(old_text.get_color())
+            new_text.set_rotation(old_text.get_rotation())
+        if delete:
+            old_text.remove()
+        self.load_texts()
+
+    def add_text(self, fig):
+        if type(fig) == dict:
+            fig = savefile.dict_to_mpl(fig)
+        fig.text(0.5, 0.5, "new text", va='top', ha='left', picker=True)
+        fig.canvas.draw()
+        self.load_texts()
+
+    def add(self):
+        if len(self.figs) == 0: return
+        self.gui_call("add_text", self.figs[0])
+
+    def duplicate(self):
+        texts = []
+        for irow in self.selectedLows():
+            texts.append(self.texts[irow])
+        for text in texts:
+            self.gui_call("move_text", text, text.figure, delete=False)
+        for fig in self.figs:
+            fig.canvas.draw()
+        self.load_texts()
+
+    def delete(self):
+        for irow in self.selectedLows()[::-1]:
+            text = self.texts[irow]
+            self.gui_call("move_text", text, None, delete=True)
+        for fig in self.figs:
+            fig.canvas.draw()
+        self.load_texts()
+
+    def fit_size(self):
+        if self.fixsize:
+            self.parent.setMinimumWidth(self.horizontalHeader().length()+40+20)
+            self.parent.setMaximumWidth(self.horizontalHeader().length()+40+20)
+            self.parent.setMinimumWidth(100)
+            height = self.verticalHeader().length()+40
+            height = height if height > 180 else 180
+            height = height if height < 400 else 400
+            self.parent.setMinimumHeight(height)
+            self.parent.setMaximumHeight(self.verticalHeader().length()+40)
+            self.parent.setMinimumWidth(100)
+
+    def refresh_and_save(self):
+        self.load_texts()
+        for irow in range(self.rowCount()):
+            self._update(irow, -1)
+
+
+class TextsToolbar(BaseToolbar):
+    def __init__(self, figs, parent=None):
+        self.table = parent.table
+        self.ddhandler = DragHandler(figs)
+        self.toolitems = (
+            ('Add', 'Add new text', os.path.join(envs.RES_DIR,'addfigure'), 'add', None, False),
+            ('Clone', 'Clone selected texts', os.path.join(envs.RES_DIR,'clone'), 'clone', None, False),
+            ('Drag', 'Set texts draggable', os.path.join(envs.RES_DIR,'textdrag'), 'set_text_draggable', None, True),
+            ('Refresh', 'Refresh texts', os.path.join(envs.RES_DIR,'refresh'), 'refresh_and_save', None, False),
+            ('Remove', 'Remove selected texts', os.path.join(envs.RES_DIR,'trash'), 'remove', None, False),
+        )
+        super().__init__(parent)
+
+    def add(self):
+        self.table.add()
+
+    def refresh_and_save(self):
+        self.table.refresh_and_save()
+
+    def set_text_draggable(self):
+        self.ddhandler.set_draggable(self.actions["set_text_draggable"].isChecked())
+
+    def remove(self):
+        self.table.delete()
+
+    def clone(self):
+        self.table.duplicate()
+
+
+class DragHandler:
+    def __init__(self, figs):
+        self.dragged = None
+        self.cids = {}
+        self.figs = figs
+
+    def set_draggable(self, bool):
+        if bool:
+            self.connect()
+        else:
+            self.disconnect()
+
+    def connect(self):
+        self.cids = {}
+        for fig in self.figs:
+            self.cids[fig.canvas.mpl_connect("pick_event", self.on_pick_event)] = fig
+            self.cids[fig.canvas.mpl_connect("motion_notify_event", self.on_motion_event)] = fig
+            self.cids[fig.canvas.mpl_connect("button_release_event", self.on_release_event)] = fig
+
+    def disconnect(self):
+        for cid, fig in self.cids.items():
+            fig.canvas.mpl_disconnect(cid)
+    
+    def on_pick_event(self, event):
+        if isinstance(event.artist, Text):
+            self.dragged = event.artist
+            x0, y0 = self.dragged.get_position()
+            self.pick_pos = (x0, y0, event.mouseevent.x, event.mouseevent.y)
+        return True
+    
+    def on_motion_event(self, event):
+        if self.dragged is not None:
+            x0, y0, xpress, ypress = self.pick_pos
+            w, h = self.dragged.figure.canvas.get_width_height()
+            w *= self.dragged.figure.canvas.device_pixel_ratio
+            h *= self.dragged.figure.canvas.device_pixel_ratio
+            dx = event.x - xpress
+            dy = event.y - ypress
+            self.dragged.set_position((round(x0 + dx/w, 3), round(y0 + dy/h, 3)))
+            self.dragged.figure.canvas.draw()
+
+    def on_release_event(self, event):
+        if self.dragged is not None:
+            self.dragged.figure.canvas.draw()
+            self.dragged = None
+        return True
+    
+
+class TextsTool(QMainWindow):
+    def __init__(self, figs, fix_size, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("TextsTool")
+        self.table = TextsTable(figs, self, fix_size)
+        self.toolbar = TextsToolbar(figs, self)
+        self.toolbar.setMovable(False)
+        self.toolbar.setFloatable(False)
+        self.toolbar.setStyleSheet(ss.toolbutton)
+        self.toolbar.setIconSize(QSize(20,20))
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, self.toolbar)
+        self.setCentralWidget(self.table)
+
+    def load_texts(self):
+        self.table.load_texts()
+
+    def show(self):
+        super().show()
+        self.load_texts()
+
+    def set_textproperties(self, text, values):
+        self.table.set_textproperties(text, values)
+
+    def move_text(self, old_text, new_fig, delete=True):
+        self.table.move_text(old_text, new_fig, delete)
+
+    def add_text(self, fig):
+        self.table.add_text(fig)
+
+
+

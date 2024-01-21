@@ -19,7 +19,7 @@ from JEMViewer2.log_widget import LogWidget
 from JEMViewer2.edit_widget import EditWidget, TempWidget
 from JEMViewer2.file_handler import savefile, envs
 from JEMViewer2.addon_installer import AddonInstaller
-from JEMViewer2.axeslinestool import AxesTool, LinesTool
+from JEMViewer2.axeslinestool import AxesTool, LinesTool, TextsTool
 from JEMViewer2.auto_update import AutoUpdater
 from JEMViewer2.notion_handler import NotionHandler
 import webbrowser
@@ -79,6 +79,7 @@ class BaseMainWindow(QMainWindow):
         self.ns = self.ipython_w.ns
         self.linestool = LinesTool(self.figs, self.ns, self.is_floatmode)
         self.axestool = AxesTool(self.figs, self.is_floatmode)
+        self.textstool = TextsTool(self.figs, self.is_floatmode)
         self._create_main_window()
         self._set_slot()
         if reboot:
@@ -192,6 +193,7 @@ class BaseMainWindow(QMainWindow):
                 figure_w.close_()
             self.linestool.close()
             self.axestool.close()
+            self.textstool.close()
             event.accept()
 
         if self.force_close:
@@ -406,6 +408,9 @@ class BaseMainWindow(QMainWindow):
             "move_line": self.linestool.move_line,
             "update_legend": self.linestool.update_legend,
             "set_axesproperties": self.axestool.set_axesproperties,
+            "set_textproperties": self.textstool.set_textproperties,
+            "move_text": self.textstool.move_text,
+            "add_text": self.textstool.add_text,
             "legend_autoupdate": self.linestool.legend_autoupdate,
             "notion_handler": self.notion_handler,
             "reload_addon": self._load_user_py,
@@ -500,6 +505,7 @@ class BaseMainWindow(QMainWindow):
         self.ns.update(alias)
         self.linestool.load_lines()
         self.axestool.load_axes()
+        self.textstool.load_texts()
 
     def _switch_mode(self, MainWindowClass, reboot=False):
         self._remove_slot()
@@ -543,6 +549,8 @@ class DockMainWindow(BaseMainWindow):
         self.add_dock(self.log_w, "log", "left", essential=True)
         self.axesdock = self.add_dock(self.axestool, "axestool", "bottom")
         self.linesdock = self.add_dock(self.linestool, "linestool", "bottom")
+        self.textsdock = self.add_dock(self.textstool, "textstool", "bottom")
+        self.textsdock.hide()
         self.setCentralWidget(self.mdi)
 
     def show_axestool(self):
@@ -550,6 +558,9 @@ class DockMainWindow(BaseMainWindow):
 
     def show_linestool(self):
         self.linesdock.show()
+
+    def show_textstool(self):
+        self.textsdock.show()
     
     def add_dock(self, wid, title="", pos="right", essential=False):
         posdic = {
@@ -629,6 +640,10 @@ class FloatMainWindow(BaseMainWindow):
     def show_linestool(self):
         self.linestool.show()
         self.linestool.raise_()
+
+    def show_textstool(self):
+        self.textstool.show()
+        self.textstool.raise_()
 
     def _create_main_window(self):
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)

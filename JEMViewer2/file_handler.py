@@ -5,6 +5,7 @@ import functools
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.text import Text
 import numpy as np
 
 exclude_command_list = [
@@ -57,6 +58,9 @@ class SaveFiles():
             id["figs"] = self.figs.index(object.axes.figure)
             id["axes"] = self.figs[id["figs"]].axes.index(object.axes)
             id["lines"] = self.figs[id["figs"]].axes[id["axes"]].lines.index(object)
+        elif typ == Text:
+            id["figs"] = self.figs.index(object.figure)
+            id["texts"] = self.figs[id["figs"]].texts.index(object)
         return id
 
     def dict_to_mpl(self, dict):
@@ -65,13 +69,15 @@ class SaveFiles():
             object = object.axes[dict["axes"]]
         if "lines" in dict.keys():
             object = object.lines[dict["lines"]]
+        if "texts" in dict.keys():
+            object = object.texts[dict["texts"]]
         return object
     
     def emulate_args(self, x):
         typ = type(x)
         if typ == str:
             return f'"{x}"'
-        elif typ in [Figure, Axes, Line2D]:
+        elif typ in [Figure, Axes, Line2D, Text]:
             id_dict = self.mpl_to_dict(x)
             return str(id_dict)
         elif typ == np.ndarray:
