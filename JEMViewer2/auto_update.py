@@ -89,18 +89,26 @@ class AutoUpdater:
             self.extract_zip()
             self.copy(branch)
             self.clean(branch)
-        self.finish()
+        return self.finish()
 
+    # def finish(self):
+    #     if self.notion_handler.ok:
+    #         reply = QMessageBox.question(None,'Update information',
+    #             f"Version {self.lv} has been downloaded. The software will now shut down to apply the changes. Would you like to view the update logs?",
+    #             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+    #         if reply == QMessageBox.Yes:
+    #             webbrowser.open_new(self.notion_handler.data["updatelog_for2.3_url"])
+    #     else:
+    #         QMessageBox.information(None,'Update information',
+    #             f"Version {self.lv} has been downloaded. The software will now shut down to apply the changes.")
+        
     def finish(self):
         if self.notion_handler.ok:
-            reply = QMessageBox.question(None,'Update information',
-                f"Version {self.lv} has been downloaded. The software will now shut down to apply the changes. Would you like to view the update logs?",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-            if reply == QMessageBox.Yes:
-                webbrowser.open_new(self.notion_handler.data["updatelog_for2.3_url"])
-        else:
-            QMessageBox.information(None,'Update information',
-                f"Version {self.lv} has been downloaded. The software will now shut down to apply the changes.")
+            webbrowser.open_new(self.notion_handler.data["updatelog_for2.3_url"])
+        msg = QMessageBox(None)
+        msg.setWindowTitle("Update information")
+        msg.setText(f"Version {self.lv} has been downloaded. The software requires to restart to apply the changes.")
+        return msg
 
 if __name__ == "__main__":
     updater = AutoUpdater(None)

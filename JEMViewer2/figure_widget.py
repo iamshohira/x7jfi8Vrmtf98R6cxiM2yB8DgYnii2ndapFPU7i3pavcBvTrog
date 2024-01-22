@@ -19,10 +19,15 @@ matplotlib.use('QtAgg')
 
 from JEMViewer2.file_handler import savefile, envs
 from JEMViewer2.axeslinestool import BoolEdit, AliasButton
+from JEMViewer2.basetoolbar import BaseToolbar
 
 from JEMViewer2.deco_figure import DecoFigure
+import JEMViewer2.stylesheet as ss
 from matplotlib import colors as mcolors
 import matplotlib.backends.qt_editor.figureoptions as figopt
+from openpyxl import Workbook
+from openpyxl.chart import ScatterChart, Reference, Series
+from openpyxl.utils.units import pixels_to_EMU
 
 screen_dpi = 72
 
@@ -40,13 +45,18 @@ class MyFigureCanvas(FigureCanvas):
     custom_loader = pyqtSignal(list)
     alias_pasted = pyqtSignal(str,Axes,bool)
     remove_required = pyqtSignal(int)
-    def __init__(self,parent,toolbar,call_as_library, call_from):
-        if call_as_library:
-            self.fig = DecoFigure(call_from, dpi=screen_dpi)
+    def __init__(self, parent, toolbar, call_as_library, call_from, fig=None):
+        if fig != None:
+            self.fig = fig
+            self.fig.set_dpi(screen_dpi)
         else:
-            self.fig = Figure(dpi=screen_dpi)
+            if call_as_library:
+                self.fig = DecoFigure(call_from, dpi=screen_dpi)
+            else:
+                self.fig = Figure(dpi=screen_dpi)
+            self.fig.add_subplot(111)
+            # self.fig.axes[0].legend().set_draggable(True)
         self.call_as_library = call_as_library
-        self.fig.add_subplot(111)
         super().__init__(self.fig)
         self.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
         self.setAcceptDrops(True)
@@ -54,11 +64,33 @@ class MyFigureCanvas(FigureCanvas):
         self.setWindowFlags(Qt.Window)
         # self.setWindowFlags(self.windowFlags() | Qt.CustomizeWindowHint)
         # self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
-        self.mpl_connect('key_press_event',self._keypressevent)
+        self.keycid = self.mpl_connect('key_press_event',self._keypressevent)
         self.parent_ = parent
         self.mytoolbar = toolbar
         self.setFocusPolicy(Qt.StrongFocus)
         self.close_from_cui = False
+        self.mdi = None
+
+    def set_mdi(self, mdi):
+        self.mdi = mdi
+
+    def magnify(self, percent):
+        base_logical_dpi = screen_dpi * self.device_pixel_ratio
+        newratio = percent / 100
+        currentratio = self.fig.get_dpi() / base_logical_dpi
+        self.fig.set_dpi(base_logical_dpi * newratio)
+        if self.mdi == None:
+            canvassize = self.size()
+            w = int(canvassize.width() * newratio / currentratio)
+            h = int(canvassize.height() * newratio / currentratio)
+            self.resize(w,h)
+        else:
+            canvassize = self.size()
+            mdisize = self.mdi.size()
+            dw, dh = mdisize.width() - canvassize.width(), mdisize.height() - canvassize.height()
+            w = int(canvassize.width() * newratio / currentratio) + dw
+            h = int(canvassize.height() * newratio / currentratio) + dh
+            self.mdi.resize(w,h)
 
     def set_window_title(self, id, prefix=None):
         if prefix != None:
@@ -141,28 +173,24 @@ class MyFigureCanvas(FigureCanvas):
             if inaxes == None: return
             self._move_plot(alias, inaxes, mod)
             return
-        mime = event.mimeData()
-        if os.name == 'posix':
-            filenames = mime.text().replace('file://','').replace('file:','').split('\n')
-        else:
-            filenames = mime.text().replace('file:///','').replace('file:','').split('\n')
-        if len(filenames) > 1:
-            filenames = filenames[:-1]
-        for file in filenames:
-            if DDHandler.type == "table":
-                self.table_required.emit(file,DDHandler.delimiters[DDHandler.separator])
-            elif DDHandler.type == "plot":
-                inaxes = self.inaxes(self.mouseEventCoords(event.position()))
-                if inaxes == None: return
-                self._open_newplot(file,inaxes)
-            elif DDHandler.type == "ndarray":
-                self._open_newndarray(file)
-            elif DDHandler.type == "customfunc":
-                inaxes = self.inaxes(self.mouseEventCoords(event.position()))
-                if inaxes == None: return
-                figaxid = self._identify_figaxid(inaxes)
-                lis = [DDHandler.functionname, file, inaxes, randomname(4), figaxid]
-                self.custom_loader.emit(lis)
+        if event.mimeData().hasUrls():
+            event.accept()
+            for url in event.mimeData().urls():
+                file = url.toLocalFile()
+                if DDHandler.type == "table":
+                    self.table_required.emit(file,DDHandler.delimiters[DDHandler.separator])
+                elif DDHandler.type == "plot":
+                    inaxes = self.inaxes(self.mouseEventCoords(event.position()))
+                    if inaxes == None: return
+                    self._open_newplot(file,inaxes)
+                elif DDHandler.type == "ndarray":
+                    self._open_newndarray(file)
+                elif DDHandler.type == "customfunc":
+                    inaxes = self.inaxes(self.mouseEventCoords(event.position()))
+                    if inaxes == None: return
+                    figaxid = self._identify_figaxid(inaxes)
+                    lis = [DDHandler.functionname, file, inaxes, randomname(4), figaxid]
+                    self.custom_loader.emit(lis)
                 
     def focusInEvent(self, a0: QFocusEvent) -> None:
         self.mytoolbar.focused_canvas = self
@@ -173,6 +201,7 @@ class MyFigureCanvas(FigureCanvas):
 
     def close_(self):
         self.close_from_cui = True
+        self.mpl_disconnect(self.keycid)
         self.close()
         
     def closeEvent(self, e):
@@ -195,6 +224,7 @@ class MyFigureCanvas(FigureCanvas):
             elif msg.clickedButton() == close:
                 self.parent_.close()
             e.ignore()
+
 
 class DDHandler(QDialog):
     type = "table"
@@ -300,89 +330,59 @@ class DDHandler(QDialog):
         dialog.update()
 
 
-class MyToolbar(QToolBar):
-    def __init__(self, parent, tools = True):
-        super().__init__(parent)
+class MyToolbar(BaseToolbar):
+    def __init__(self, parent, is_floatmode = True):
         self.mpl_toolbars = {}
         self.parent = parent
         self.tmp_ext = 'jpg'
-        if tools:
-            self.toolitems = (
-                ('Loader', 'Set loader type', os.path.join(envs.RES_DIR,'dd'), 'loader', None),
-                ('Popup', 'Popup figures', os.path.join(envs.RES_DIR,'popup'), 'popup', None),
-                ('AddFigure', 'Add figure', os.path.join(envs.RES_DIR,'addfigure'), 'addfigure', None),
-                ('AxesTool', 'Show AxesTool', os.path.join(envs.RES_DIR,'axestool'), 'axestool', None),
-                ('LinesTool', 'Show LinesTool', os.path.join(envs.RES_DIR,'linestool'), 'linestool', None),
-                (None, None, None, None, None),
-                ('Home', 'Reset original view', 'home', 'home', None),
-                ('Back', 'Back to previous view', 'back', 'back', None),
-                ('Forward', 'Forward to next view', 'forward', 'forward', None),
-                (None, None, None, None, None),
-                ('Pan',
-                'Left button pans, Right button zooms\n'
-                'x/y fixes axis, CTRL fixes aspect',
-                'move', 'pan', None),
-                ('Zoom', 'Zoom to rectangle\nx/y fixes axis', 'zoom_to_rect', 'zoom', None),
-                ('Subplots', 'Configure subplots', 'subplots', 'configure_subplots', None),
-                (None, None, None, None, None),
-                ('Save', 'Save the figure', 'filesave', 'save_figure', None),
-                ('SaveAnim', 'Save figures for ppt animation', os.path.join(envs.RES_DIR,'savefiganim'), 'save_figure_for_animation', None),
-                ('CopyFig', 'Copy figure to clipboard', os.path.join(envs.RES_DIR,'clipboard'), 'copy_figure_to_clipboard', 'clipboard_menu'),
-                ('Excel', 'Export data to excel', os.path.join(envs.RES_DIR,'excel'), 'export_data_to_excel', None),
+        base = (
+                ('Loader', 'Set loader type', os.path.join(envs.RES_DIR,'dd'), 'loader', None, False),
+                ('AddFigure', 'Add figure', os.path.join(envs.RES_DIR,'addfigure'), 'addfigure', None, False),
+                # ("EnableLineDrag", "Enable line drag", os.path.join(envs.RES_DIR,'linedrag'), 'enable_line_drag', None, True),
+                (None, None, None, None, None, False),
+        )
+        if is_floatmode:
+            mode = (
+                    ('SwitchMode', 'Switch mode', os.path.join(envs.RES_DIR,'switchmode'), 'switch_mode', None, False),
+                    ('Popup', 'Popup figures', os.path.join(envs.RES_DIR,'popup'), 'popup', None, False),
+                    (None, None, None, None, None, False),
             )
         else:
-            self.toolitems = (
-                ('Loader', 'Set loader type', os.path.join(envs.RES_DIR,'dd'), 'loader', None),
-                ('AddFigure', 'Add figure', os.path.join(envs.RES_DIR,'addfigure'), 'addfigure', None),
-                (None, None, None, None, None),
-                ('Home', 'Reset original view', 'home', 'home', None),
-                ('Back', 'Back to previous view', 'back', 'back', None),
-                ('Forward', 'Forward to next view', 'forward', 'forward', None),
-                (None, None, None, None, None),
+            mode = (
+                    ('SwitchMode', 'Switch mode', os.path.join(envs.RES_DIR,'switchmode'), 'switch_mode', None, False),
+                    ('Tiling', 'Tiling figures', os.path.join(envs.RES_DIR,'tile'), 'tiling', None, False),
+                    ('Cascading', 'Cascading figures', os.path.join(envs.RES_DIR,'cascade'), 'cascading', None, False),
+                    (None, None, None, None, None, False),
+            )
+        tool = (
+                ('AxesTool', 'Show AxesTool', os.path.join(envs.RES_DIR,'axestool'), 'axestool', None, False),
+                ('LinesTool', 'Show LinesTool', os.path.join(envs.RES_DIR,'linestool'), 'linestool', None, False),
+                ('TextsTool', 'Show TextsTool', os.path.join(envs.RES_DIR,'textstool'), 'textstool', None, False),
+                (None, None, None, None, None, False),
+        )
+        mpl = (
+                ('Home', 'Reset original view', 'home', 'home', None, False),
+                ('Back', 'Back to previous view', 'back', 'back', None, False),
+                ('Forward', 'Forward to next view', 'forward', 'forward', None, False),
+                (None, None, None, None, None, False),
                 ('Pan',
                 'Left button pans, Right button zooms\n'
                 'x/y fixes axis, CTRL fixes aspect',
-                'move', 'pan', None),
-                ('Zoom', 'Zoom to rectangle\nx/y fixes axis', 'zoom_to_rect', 'zoom', None),
-                ('Subplots', 'Configure subplots', 'subplots', 'configure_subplots', None),
-                (None, None, None, None, None),
-                ('Save', 'Save the figure', 'filesave', 'save_figure', None),
-                ('SaveAnim', 'Save figures for ppt animation', os.path.join(envs.RES_DIR,'savefiganim'), 'save_figure_for_animation', None),
-                ('CopyFig', 'Copy figure to clipboard', os.path.join(envs.RES_DIR,'clipboard'), 'copy_figure_to_clipboard', 'clipboard_menu'),
-                ('Excel', 'Export data to excel', os.path.join(envs.RES_DIR,'excel'), 'export_data_to_excel', None),
-            )
-        self.actions = {} 
-        dummybar = NavigationToolbar(FigureCanvas(), None)
+                'move', 'pan', None, True),
+                ('Zoom', 'Zoom to rectangle\nx/y fixes axis', 'zoom_to_rect', 'zoom', None, True),
+                ('Subplots', 'Configure subplots', 'subplots', 'configure_subplots', None, False),
+                (None, None, None, None, None, False),
+        )
+        save = (
+                ('Save', 'Save the figure', 'filesave', 'save_figure', None, False),
+                ('SaveAnim', 'Save figures for ppt animation', os.path.join(envs.RES_DIR,'savefiganim'), 'save_figure_for_animation', None, False),
+                ('CopyFig', 'Copy figure to clipboard', os.path.join(envs.RES_DIR,'clipboard'), 'copy_figure_to_clipboard', 'clipboard_menu', False),
+                ('Excel', 'Export data to excel', os.path.join(envs.RES_DIR,'excel'), 'export_data_to_excel', None, False),
+
+        )
+        self.toolitems = base + mode + tool + mpl + save
+        super().__init__(parent)
         self.loc_label = self.parent.bar
-        # self.loc_label = QLabel("", self)
-        # self.loc_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        # self.loc_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
-
-        for text, tooltip_text, image_file, callback, rightcallback in self.toolitems:
-            if text is None:
-                self.addSeparator()
-            else:
-                a = self.addCAction(dummybar._icon(image_file + '.png'), text, callback, rightcallback)
-                self.actions[callback] = a
-                if callback in ['zoom', 'pan']:
-                    a.setCheckable(True)
-                if tooltip_text is not None:
-                    a.setToolTip(tooltip_text)
-
-    def addCAction(self, icon, text, callback, rightcallback):
-        b = RightClickToolButton(self)
-        b.setIcon(icon)
-        b.setText(text)
-        b.clicked.connect(getattr(self, callback))
-        if rightcallback is not None:
-            b.rightClicked.connect(getattr(self, rightcallback))
-        self.addWidget(b)
-        return b
-
-    def event(self, event):
-        if event.type() == QEvent.Type.ContextMenu:
-            return True
-        return super().event(event)
 
     def loader(self):
         DDHandler.show(self)
@@ -390,14 +390,26 @@ class MyToolbar(QToolBar):
     def popup(self):
         self.parent.raise_figure_widgets()
 
+    def tiling(self):
+        self.parent.tiling()
+
+    def cascading(self):
+        self.parent.cascading()
+
+    def switch_mode(self):
+        self.parent.switch_mode()
+
+    def enable_line_drag(self):
+        self.parent.linestool.set_line_draggable(self.actions['enable_line_drag'].isChecked())
+
     def linestool(self):
-        self.parent.linestool.show()
-        self.parent.linestool.load_lines()
-        self.parent.linestool.raise_()
+        self.parent.show_linestool()
 
     def axestool(self):
-        self.parent.axestool.show()
-        self.parent.axestool.raise_()
+        self.parent.show_axestool()
+
+    def textstool(self):
+        self.parent.show_textstool()
 
     def addfigure(self):
         self.parent.add_figure()
@@ -448,13 +460,6 @@ class MyToolbar(QToolBar):
         #os.remove(figpath)
 
     def export_data_to_excel(self):
-        try:
-            from openpyxl import Workbook
-            from openpyxl.chart import ScatterChart, Reference, Series
-            from openpyxl.utils.units import pixels_to_EMU
-        except:
-            self.pop_message("openpyxl not installed. Please visit the JEMViewer2 manual page for more information.")
-            return
         marker_map = {
             'point': "dot",
             'pixel': "dot",
@@ -617,6 +622,7 @@ class MyToolbar(QToolBar):
     def pop_message(self, message="Please focus a figure widget."):
         QMessageBox.critical(self,"Error",message)
 
+
 class MySubplotToolQt(SubplotToolQt):
     active = False
     def __init__(self, canvas, parent):
@@ -768,10 +774,3 @@ class SaveForAnimationDialog(QDialog):
         SaveForAnimationDialog.active = False
         event.accept()
 
-class RightClickToolButton(QToolButton):
-    rightClicked = pyqtSignal()
-    def mouseReleaseEvent(self, e):
-        if e.button() == Qt.RightButton:
-            self.rightClicked.emit()
-        else:
-            super().mouseReleaseEvent(e)

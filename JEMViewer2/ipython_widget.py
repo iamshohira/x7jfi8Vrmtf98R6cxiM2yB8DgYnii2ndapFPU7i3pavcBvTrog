@@ -11,23 +11,27 @@ from qtconsole.inprocess import QtInProcessKernelManager
 import qtconsole.styles as styles
 
 class IPythonWidget(RichIPythonWidget):
-    command_finished = pyqtSignal()
+    command_finished = pyqtSignal(str)
     """ Convenience class for a live IPython console widget. We can replace the standard banner using the customBanner argument"""
     def __init__(self,customBanner=None,*args,**kwargs):
         super().__init__(*args,**kwargs)
         if customBanner!=None: self.banner=customBanner
-        self.kernel_manager = kernel_manager = QtInProcessKernelManager()
+        self.kernel_manager = QtInProcessKernelManager()
         self.set_default_style(colors='linux')
         self.syntax_style = 'monokai'
         self.style_sheet = styles.default_dark_style_template%dict(bgcolor='#222222', fgcolor='#dddddd', select="#555")
-        kernel_manager.start_kernel()
-        kernel_manager.kernel.gui = 'qt'
-        self.kernel_client = kernel_client = self._kernel_manager.client()
+        self.kernel_manager.start_kernel()
+        self.kernel_manager.kernel.gui = 'qt'
+        self.kernel_client = self.kernel_manager.client()
         self.ns = self.kernel_manager.kernel.shell.user_ns
         self.ns_hidden = self.kernel_manager.kernel.shell.user_ns_hidden
-        kernel_client.start_channels()       
+        self.kernel_client.start_channels()       
         self.exit_requested.connect(self.stop)
-        self.error = False    
+        self.error = False
+
+    def reset_session(self):
+        self.kernel_manager.kernel.shell.reset()
+        self.reset(clear=True)
 
     def saveHistory(self, command):
         self._history.append(command)
@@ -75,7 +79,7 @@ class IPythonWidget(RichIPythonWidget):
         return super()._handle_error(msg)
 
     def _on_flush_pending_stream_timer(self):
-        self.command_finished.emit()
+        self.command_finished.emit(self.ns['In'][-1].strip())
         self.error = False
         return super()._on_flush_pending_stream_timer()
 
