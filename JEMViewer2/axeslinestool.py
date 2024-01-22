@@ -3,12 +3,15 @@ import os, json
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
+from matplotlib.backend_bases import Event
 import matplotlib.backends.qt_editor.figureoptions as figopt
 from matplotlib import colors as mcolors
 from JEMViewer2.file_handler import savefile, envs
 import JEMViewer2.stylesheet as ss
 from JEMViewer2.basetoolbar import BaseToolbar
 from matplotlib.text import Text
+from JEMViewer2.fontdialog import FontDialog
+from matplotlib.legend import Legend, DraggableLegend
 
 def sorted_markers():
     all_markers = list(figopt.MARKERS.keys())
@@ -225,6 +228,7 @@ class BaseTool(QTableWidget):
         self.setColumnCount(len(self.header))
         self.setHorizontalHeaderLabels(self.header)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContentsOnFirstShow)
         self.figs = figs
         self.ns = ns
@@ -308,22 +312,132 @@ class BaseTool(QTableWidget):
         savefile.save_emulate_command(function_name, *args, **kwargs)
         f = getattr(self, function_name)
         f(*args, **kwargs)
+
+
+class MyLegend(Legend):
+    def set_draggable(self, state, use_blit=False, update='loc'):
+        if state:
+            if self._draggable is None:
+                self._draggable = MyDraggableLegend(self, use_blit=use_blit, update=update)
+        else:
+            if self._draggable is not None:
+                self._draggable.disconnect()
+            self._draggable = None
+        return self._draggable
+    
+class MyDraggableLegend(DraggableLegend):
+    def finalize_offset(self):
+        super().finalize_offset()
+        self.gui_call("set_legend_loc", self.legend.axes, self.legend._loc)
+
+    @classmethod
+    def set_legend_loc(cls, axes, loc):
+        if type(axes) == dict:
+            axes = savefile.dict_to_mpl(axes)
+        if axes.legend_ != None:
+            axes.legend_._loc = loc
+            axes.figure.canvas.draw()
+
+    def gui_call(self, function_name, *args, **kwargs):
+        savefile.save_emulate_command(function_name, *args, **kwargs)
+        f = getattr(self, function_name)
+        f(*args, **kwargs)
+
+
+class LinesToolbar(BaseToolbar):
+    def __init__(self, figs, parent=None):
+        self.table = parent.table
+        self.toolitems = (
+            ("EnableLineDrag", "Enable line drag", os.path.join(envs.RES_DIR,'linedrag'), 'enable_line_drag', None, True),
+            ('AutoLegend', 'Auto legend mode', os.path.join(envs.RES_DIR,'auto'), 'auto_legend', None, True),
+            ('Clone', 'Clone selected texts', os.path.join(envs.RES_DIR,'clone'), 'clone', None, False),
+            ('Remove', 'Remove selected texts', os.path.join(envs.RES_DIR,'trash'), 'remove', None, False),
+        )
+        super().__init__(parent)
+
+    def trigger_legend_update(self, b):
+        self.actions['auto_legend'].setChecked(b)
+
+    def auto_legend(self):
+        self.table.set_legend_autoupdate(self.actions['auto_legend'].isChecked())
+        savefile.save_emulate_command("set_legend_autoupdate", self.actions['auto_legend'].isChecked())
+
+    def enable_line_drag(self):
+        self.table.set_line_draggable(self.actions['enable_line_drag'].isChecked())
+
+    def remove(self):
+        self.table.delete()
+
+    def clone(self):
+        self.table.duplicate()
     
 
-class LinesTool(BaseTool):
+class LinesTool(QMainWindow):
+    def __init__(self, figs, ns, fix_size=True, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("LinesTool")
+        self.table = LinesTable(figs, ns, self, fix_size)
+        self.line_moved = self.table.line_moved
+        self.alias_clicked = self.table.alias_clicked
+        self.toolbar = LinesToolbar(figs, self)
+        self.table.legend_update_called.connect(self.toolbar.trigger_legend_update)
+        self.toolbar.setMovable(False)
+        self.toolbar.setFloatable(False)
+        self.toolbar.setStyleSheet(ss.toolbutton)
+        self.toolbar.setIconSize(QSize(20,20))
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, self.toolbar)
+        self.setCentralWidget(self.table)
+
+    def set_lineproperties(self, line, values):
+        self.table.set_lineproperties(line, values)
+
+    def move_line(self, old_line, new_axes, delete=True):
+        self.table.move_line(old_line, new_axes, delete)
+
+    def update_legend(self):
+        self.table.update_legend()
+
+    def set_legend_autoupdate(self, b):
+        self.table.set_legend_autoupdate(b)
+
+    def move_by_drag(self, alias, ax, is_copy):
+        self.table.move_by_drag(alias, ax, is_copy)
+
+    def load_lines(self):
+        self.table.load_lines()
+
+    def show(self):
+        super().show()
+        self.load_lines()
+
+
+class LinesTable(BaseTool):
     line_moved = pyqtSignal()
     alias_clicked = pyqtSignal(str)
-    def __init__(self, figs, ns, fixsize = True):
-        header = ["show","alias","zorder","label","memo","line style","width","line color","marker","size","marker color","edge","edge color"]
+    legend_update_called = pyqtSignal(bool)
+    def __init__(self, figs, ns, parent, fixsize = True):
+        header = ["show","alias","zorder","legend","label","memo","line style","width","line color","marker","size","marker color","edge","edge color"]
         title = "LinesTool"
+        self.parent = parent
         super().__init__(figs, ns, header, title, fixsize)
         self.cids = {}
         self._line_draggable = False
         self.load_lines()
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.contextmenu)
-        self.legend_autoupdate(True)
+        # self.setContextMenuPolicy(Qt.CustomContextMenu)
+        # self.customContextMenuRequested.connect(self.contextmenu)
         self.horizontalHeader().sectionClicked.connect(self.allset)
+
+    def fit_size(self):
+        if self.fixsize:
+            self.parent.setMinimumWidth(self.horizontalHeader().length()+40+20)
+            self.parent.setMaximumWidth(self.horizontalHeader().length()+40+20)
+            self.parent.setMinimumWidth(100)
+            height = self.verticalHeader().length()+40
+            height = height if height > 180 else 180
+            height = height if height < 400 else 400
+            self.parent.setMinimumHeight(height)
+            self.parent.setMaximumHeight(self.verticalHeader().length()+40)
+            self.parent.setMinimumWidth(100)
 
     def allset(self, column):
         # show context menu
@@ -342,8 +456,11 @@ class LinesTool(BaseTool):
             self.cellWidget(irow, column).set_by_order(irow)
             self._update(irow, column)
 
-    def legend_autoupdate(self, b):
+    def set_legend_autoupdate(self, b):
         self._legend_autoupdate = b
+        if b:
+            self.update_legend()
+        self.legend_update_called.emit(b)
 
     def set_line_draggable(self, bool):
         self._line_draggable = bool
@@ -377,6 +494,13 @@ class LinesTool(BaseTool):
                     self.aliasbuttons[line] = btn
                     # zorder
                     self.appendCellWidgetToColumn("int", initial=line.get_zorder())
+                    # visible
+                    # attribute check
+                    if hasattr(line, "visible_in_legend"):
+                        b = line.visible_in_legend
+                    else:
+                        b = False
+                    self.appendCellWidgetToColumn("bool", initial=b)
                     # label
                     self.appendCellWidgetToColumn("str", initial=line.get_label())
                     # memo
@@ -416,6 +540,8 @@ class LinesTool(BaseTool):
             line = savefile.dict_to_mpl(line)
         line.set_visible(values["show"])
         line.set_zorder(values["zorder"])
+        if "legend" in values.keys():
+            line.visible_in_legend = values["legend"]
         line.set_label(values["label"])
         line.set_gid(values["memo"])
         line.set_ls(values["line style"])
@@ -432,13 +558,22 @@ class LinesTool(BaseTool):
         if not self._legend_autoupdate: return
         for fig in self.figs:
             for ax in fig.axes:
-                if (ol := ax.get_legend()) == None: continue
-                fs = ol._fontsize
-                loc = ol._loc
-                drag = ol._draggable is not None
-                nl = ax.legend(fontsize=fs)
-                nl._set_loc(loc)
-                nl.set_draggable(drag)
+                handles = []
+                labels = []
+                for line in ax.lines:
+                    if hasattr(line, "visible_in_legend"):
+                        if line.visible_in_legend:
+                            handles.append(line)
+                            labels.append(line.get_label())
+                if (ol := ax.legend_) != None:
+                    loc = ol._loc
+                    ol.set_draggable(False)
+                else:
+                    loc = 'best'
+                ax.legend_ = MyLegend(ax, handles, labels, loc=loc, draggable=True)
+            fig.canvas.draw()
+                # nl._set_loc(loc)
+                # nl.set_draggable(drag)
 
     def move_line(self, old_line, new_axes, delete=True):
         if type(old_line) == dict:
@@ -449,6 +584,8 @@ class LinesTool(BaseTool):
             new_line, = new_axes.plot(*old_line.get_data())
             new_line.set_visible(old_line.get_visible())
             new_line.set_zorder(old_line.get_zorder())
+            if hasattr(old_line, "visible_in_legend"):
+                new_line.visible_in_legend = old_line.visible_in_legend
             new_line.set_label(old_line.get_label())
             new_line.set_gid(old_line.get_gid())
             new_line.set_ls(old_line.get_ls())
@@ -464,28 +601,31 @@ class LinesTool(BaseTool):
         self.line_moved.emit()
         self.update_legend()
 
-    def contextmenu(self,point):
-        menu = QMenu(self)
-        duplicate_action = menu.addAction('Duplicate')
-        duplicate_action.triggered.connect(self.duplicate)
-        delete_action = menu.addAction('Delete')
-        delete_action.triggered.connect(self.delete)
-        menu.exec_(self.mapToGlobal(point))
+    # def contextmenu(self,point):
+    #     menu = QMenu(self)
+    #     duplicate_action = menu.addAction('Duplicate')
+    #     duplicate_action.triggered.connect(self.duplicate)
+    #     delete_action = menu.addAction('Delete')
+    #     delete_action.triggered.connect(self.delete)
+    #     menu.exec_(self.mapToGlobal(point))
 
     def duplicate(self):
-        irow = self.currentRow()
-        line = self.lines[irow]
-        self.gui_call("move_line", line, line.axes, delete=False)
+        lines = []
+        for irow in self.selectedLows():
+            lines.append(self.lines[irow])
+        for line in lines:
+            self.gui_call("move_line", line, line.axes, delete=False)
         self.update_legend()
-        line.axes.figure.canvas.draw()
+        for fig in self.figs:
+            fig.canvas.draw()
         self.load_lines()
 
     def delete(self):
-        irow = self.currentRow()
-        line = self.lines[irow]
-        fig = line.axes.figure
-        self.gui_call("move_line", line, None, delete=True)
-        fig.canvas.draw()
+        for irow in self.selectedLows()[::-1]:
+            line = self.lines[irow]
+            self.gui_call("move_line", line, None, delete=True)
+        for fig in self.figs:
+            fig.canvas.draw()
         self.load_lines()
 
     def move_by_drag(self, alias, ax, is_copy):
@@ -504,10 +644,7 @@ class LinesTool(BaseTool):
     # def closeEvent(self, a0: QCloseEvent) -> None:
     #     self.initialize()
     #     return super().closeEvent(a0)
-    
-    def show(self):
-        super().show()
-        self.load_lines()
+
 
 
 class AxesTool(BaseTool):
@@ -630,7 +767,7 @@ class TextsTable(BaseTool):
     va_choices = ["top","center_baseline","center","baseline","bottom"]
     ha_choices = ["left","center","right"]
     def __init__(self, figs, parent, fixsize = True):
-        header = ["show","figs","text","x","y","va","ha","color","rotation"]
+        header = ["show","figs","text","x","y","va","ha","size","color","rotation"]
         title = "TextsTool"
         self.parent = parent
         super().__init__(figs, None, header, title, fixsize)
@@ -676,6 +813,8 @@ class TextsTable(BaseTool):
                 self.appendCellWidgetToColumn("combo", initial=text.get_va(), dict={v:v for v in self.va_choices})
                 # ha
                 self.appendCellWidgetToColumn("combo", initial=text.get_ha(), dict={v:v for v in self.ha_choices})
+                # size
+                self.appendCellWidgetToColumn("float", initial=text.get_fontsize())
                 # color
                 color = mcolors.to_hex(mcolors.to_rgb(text.get_color()))
                 self.appendCellWidgetToColumn("color", initial=color)
@@ -704,6 +843,7 @@ class TextsTable(BaseTool):
         text.set_position((values["x"], values["y"]))
         text.set_va(values["va"])
         text.set_ha(values["ha"])
+        text.set_fontsize(values["size"])
         text.set_color(values["color"])
         text.set_rotation(values["rotation"])
 
@@ -718,6 +858,7 @@ class TextsTable(BaseTool):
             new_text.set_zorder(old_text.get_zorder())
             new_text.set_va(old_text.get_va())
             new_text.set_ha(old_text.get_ha())
+            new_text.set_fontsize(old_text.get_fontsize())
             new_text.set_color(old_text.get_color())
             new_text.set_rotation(old_text.get_rotation())
         if delete:
@@ -759,7 +900,7 @@ class TextsTable(BaseTool):
             self.parent.setMaximumWidth(self.horizontalHeader().length()+40+20)
             self.parent.setMinimumWidth(100)
             height = self.verticalHeader().length()+40
-            height = height if height > 180 else 180
+            height = height if height > 210 else 210
             height = height if height < 400 else 400
             self.parent.setMinimumHeight(height)
             self.parent.setMaximumHeight(self.verticalHeader().length()+40)
@@ -774,6 +915,7 @@ class TextsTable(BaseTool):
 class TextsToolbar(BaseToolbar):
     def __init__(self, figs, parent=None):
         self.table = parent.table
+        FontDialog.set_figs(figs)
         self.ddhandler = DragHandler(figs)
         self.toolitems = (
             ('Add', 'Add new text', os.path.join(envs.RES_DIR,'addfigure'), 'add', None, False),
@@ -781,8 +923,12 @@ class TextsToolbar(BaseToolbar):
             ('Drag', 'Set texts draggable', os.path.join(envs.RES_DIR,'textdrag'), 'set_text_draggable', None, True),
             ('Refresh', 'Refresh texts', os.path.join(envs.RES_DIR,'refresh'), 'refresh_and_save', None, False),
             ('Remove', 'Remove selected texts', os.path.join(envs.RES_DIR,'trash'), 'remove', None, False),
+            ('Font', 'Change font', os.path.join(envs.RES_DIR,'font'), 'font_setting', None, False),
         )
         super().__init__(parent)
+
+    def font_setting(self):
+        FontDialog.show()
 
     def add(self):
         self.table.add()

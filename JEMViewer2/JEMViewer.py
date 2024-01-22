@@ -19,9 +19,10 @@ from JEMViewer2.log_widget import LogWidget
 from JEMViewer2.edit_widget import EditWidget, TempWidget
 from JEMViewer2.file_handler import savefile, envs
 from JEMViewer2.addon_installer import AddonInstaller
-from JEMViewer2.axeslinestool import AxesTool, LinesTool, TextsTool
+from JEMViewer2.axeslinestool import AxesTool, LinesTool, TextsTool, MyDraggableLegend
 from JEMViewer2.auto_update import AutoUpdater
 from JEMViewer2.notion_handler import NotionHandler
+from JEMViewer2.fontdialog import FontDialog
 import webbrowser
 
 if os.name == "nt": #windows
@@ -411,7 +412,7 @@ class BaseMainWindow(QMainWindow):
             "set_textproperties": self.textstool.set_textproperties,
             "move_text": self.textstool.move_text,
             "add_text": self.textstool.add_text,
-            "legend_autoupdate": self.linestool.legend_autoupdate,
+            "set_legend_autoupdate": self.linestool.set_legend_autoupdate,
             "notion_handler": self.notion_handler,
             "reload_addon": self._load_user_py,
             "execom": self.execom,
@@ -421,6 +422,9 @@ class BaseMainWindow(QMainWindow):
             "dockmode": self.dockmode,
             "floatmode": self.floatmode,
             "is_floatmode": self.is_floatmode,
+            "set_font": FontDialog.set_font,
+            "set_fontsize": FontDialog.set_fontsize,
+            "set_legend_loc": MyDraggableLegend.set_legend_loc,
         }
         self.ns.update(DEFAULT_NAMESPACE)
         self.ns.update(namespace)
@@ -459,10 +463,19 @@ class BaseMainWindow(QMainWindow):
             self.timer_for_load.start(10)
         else:
             # すべて読込み終わった後にshow
+            if self.filepath != None:
+                self._set_windowname()
             self.show()
             for figure_w in self.figure_widgets:
                 figure_w.show()
             self.raise_()
+            self.timer_for_set = QTimer(self)
+            def do_set():
+                self.ipython_w.executeCommand("set_legend_autoupdate(True)",hidden=True)
+                savefile.save_command("set_legend_autoupdate(True)",alias=False)
+                self.timer_for_set.stop()
+            self.timer_for_set.timeout.connect(do_set)
+            self.timer_for_set.start(10)
 
     def direct_edit(self):
         subprocess.run([envs.RUN, savefile.logfilename])

@@ -80,62 +80,62 @@ def set_framewidth(width, axis=None):
             axis.spines[i].set_linewidth(width)
 
 
-def set_fontsize(size,axis=None):
-    """change font size of all components
-    Args:
-        size (int): fontsize
-        axis (matplotlib.Axis, optional): target axis. If None, apply to all axis in figs.axes. Defaults to None.
-    """
-    if axis != None:
-        axes = [axis]
-    else:
-        axes = [a for f in figs for a in f.axes]
-    for axis in axes:
-        axis.set_xlabel(axis.get_xlabel(),fontsize=size)
-        axis.set_ylabel(axis.get_ylabel(),fontsize=size)
-        axis.tick_params(labelsize=size)
-        for t in axis.texts:
-            t.set_fontsize(size)
-        if axis.legend_:
-            for text in axis.legend_.texts:
-                text.set_fontsize(size)
+# def set_fontsize(size,axis=None):
+#     """change font size of all components
+#     Args:
+#         size (int): fontsize
+#         axis (matplotlib.Axis, optional): target axis. If None, apply to all axis in figs.axes. Defaults to None.
+#     """
+#     if axis != None:
+#         axes = [axis]
+#     else:
+#         axes = [a for f in figs for a in f.axes]
+#     for axis in axes:
+#         axis.set_xlabel(axis.get_xlabel(),fontsize=size)
+#         axis.set_ylabel(axis.get_ylabel(),fontsize=size)
+#         axis.tick_params(labelsize=size)
+#         for t in axis.texts:
+#             t.set_fontsize(size)
+#         if axis.legend_:
+#             for text in axis.legend_.texts:
+#                 text.set_fontsize(size)
 
-def set_font(fontname,axis=None):
-    """change font size of all components
-    Args:
-        fontname (str): fontname
-        axis (matplotlib.Axis, optional): target axis. If None, apply to all axis in figs.axes. Defaults to None.
-    """
-    font = {'family':fontname}
-    if axis != None:
-        axes = [axis]
-    else:
-        axes = [a for f in figs for a in f.axes]
-    for axis in axes:
-        axis.set_xlabel(axis.get_xlabel(),**font)
-        axis.set_ylabel(axis.get_ylabel(),**font)
-        form = axis.xaxis.get_major_formatter()
-        loca = axis.xaxis.get_major_locator()
-        lim = axis.get_xlim()
-        ticks = np.linspace(lim[0],lim[1],100)
-        axis.xaxis.set_ticks(ticks)
-        axis.xaxis.set_ticklabels(ticks,**font)
-        axis.xaxis.set_major_formatter(form)
-        axis.xaxis.set_major_locator(loca)
-        form = axis.yaxis.get_major_formatter()
-        loca = axis.yaxis.get_major_locator()
-        lim = axis.get_ylim()
-        ticks = np.linspace(lim[0],lim[1],100)
-        axis.yaxis.set_ticks(ticks)
-        axis.yaxis.set_ticklabels(ticks,**font)
-        axis.yaxis.set_major_formatter(form)
-        axis.yaxis.set_major_locator(loca)
-        if axis.legend_:
-            for text in axis.legend_.texts:
-                text.set_fontname(fontname)
-        for t in axis.texts:
-            t.set_fontname(fontname)
-        axis.title.set_fontname(fontname)
+# def set_font(fontname,axis=None):
+#     """change font size of all components
+#     Args:
+#         fontname (str): fontname
+#         axis (matplotlib.Axis, optional): target axis. If None, apply to all axis in figs.axes. Defaults to None.
+#     """
+#     font = {'family':fontname}
+#     if axis != None:
+#         axes = [axis]
+#     else:
+#         axes = [a for f in figs for a in f.axes]
+#     for axis in axes:
+#         axis.set_xlabel(axis.get_xlabel(),**font)
+#         axis.set_ylabel(axis.get_ylabel(),**font)
+#         form = axis.xaxis.get_major_formatter()
+#         loca = axis.xaxis.get_major_locator()
+#         lim = axis.get_xlim()
+#         ticks = np.linspace(lim[0],lim[1],100)
+#         axis.xaxis.set_ticks(ticks)
+#         axis.xaxis.set_ticklabels(ticks,**font)
+#         axis.xaxis.set_major_formatter(form)
+#         axis.xaxis.set_major_locator(loca)
+#         form = axis.yaxis.get_major_formatter()
+#         loca = axis.yaxis.get_major_locator()
+#         lim = axis.get_ylim()
+#         ticks = np.linspace(lim[0],lim[1],100)
+#         axis.yaxis.set_ticks(ticks)
+#         axis.yaxis.set_ticklabels(ticks,**font)
+#         axis.yaxis.set_major_formatter(form)
+#         axis.yaxis.set_major_locator(loca)
+#         if axis.legend_:
+#             for text in axis.legend_.texts:
+#                 text.set_fontname(fontname)
+#         for t in axis.texts:
+#             t.set_fontname(fontname)
+#         axis.title.set_fontname(fontname)
 
 # def savefig_for_animation(baseplots, animationplots, axis=ax, framecolor='black'):
 #     """write separated figures for graph animation in powerpoint
@@ -241,34 +241,33 @@ def set_all_markeredgewidth(size,axis=None):
             plot.set_markeredgewidth(size)
 
 def font_dialog(axis=None):
-    """Open dialog for font setting
-    Args:
-        axis (matplotlib.Axis, optional): target axis. If None, apply to all axis in fig.axes. Defaults to None.
+    """This feature has been deprecated.
     """
-    from PyQt6.QtWidgets import QFontDialog
-    from matplotlib import font_manager
-    import difflib
-    import os
-    fm = font_manager.fontManager
-    familylist = [f.name for f in fm.afmlist]
-    familylist.extend([f.name for f in fm.ttflist])
-    familylist = list(set(familylist))
-    font, ok = QFontDialog.getFont()
-    if ok:
-        closest = difflib.get_close_matches(font.family(),familylist)
-        if len(closest) == 0:
-            print("Error!")
-            print("Font family \"{}\" is not available in matplotlib!".format(font.family(),))
-            print("Removing {} may solve the problem.".format(os.path.join(os.path.expanduser('~'),".matplotlib","fontlist-v***.json"),))
-            return
-        set_font(closest[0],axis)
-        set_fontsize(font.pointSize(),axis)
-        if closest[0] != font.family():
-            print("Warning!")
-            print("Font family \"{}\" was not included in the available list.".format(font.family(),))
-            print("The closest \"{}\" was used instead.".format(closest[0]))
-        print("Family name: {}".format(closest[0],))
-        print("Point size : {}".format(font.pointSize(),))
+    pass
+    # from PyQt6.QtWidgets import QFontDialog
+    # from matplotlib import font_manager
+    # import difflib
+    # import os
+    # fm = font_manager.fontManager
+    # familylist = [f.name for f in fm.afmlist]
+    # familylist.extend([f.name for f in fm.ttflist])
+    # familylist = list(set(familylist))
+    # font, ok = QFontDialog.getFont()
+    # if ok:
+    #     closest = difflib.get_close_matches(font.family(),familylist)
+    #     if len(closest) == 0:
+    #         print("Error!")
+    #         print("Font family \"{}\" is not available in matplotlib!".format(font.family(),))
+    #         print("Removing {} may solve the problem.".format(os.path.join(os.path.expanduser('~'),".matplotlib","fontlist-v***.json"),))
+    #         return
+    #     set_font(closest[0],axis)
+    #     set_fontsize(font.pointSize(),axis)
+    #     if closest[0] != font.family():
+    #         print("Warning!")
+    #         print("Font family \"{}\" was not included in the available list.".format(font.family(),))
+    #         print("The closest \"{}\" was used instead.".format(closest[0]))
+    #     print("Family name: {}".format(closest[0],))
+    #     print("Point size : {}".format(font.pointSize(),))
 
 
 class label:

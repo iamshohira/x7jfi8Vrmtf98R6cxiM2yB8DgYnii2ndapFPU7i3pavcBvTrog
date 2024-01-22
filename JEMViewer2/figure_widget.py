@@ -55,7 +55,7 @@ class MyFigureCanvas(FigureCanvas):
             else:
                 self.fig = Figure(dpi=screen_dpi)
             self.fig.add_subplot(111)
-            self.fig.axes[0].legend().set_draggable(True)
+            # self.fig.axes[0].legend().set_draggable(True)
         self.call_as_library = call_as_library
         super().__init__(self.fig)
         self.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
@@ -338,7 +338,7 @@ class MyToolbar(BaseToolbar):
         base = (
                 ('Loader', 'Set loader type', os.path.join(envs.RES_DIR,'dd'), 'loader', None, False),
                 ('AddFigure', 'Add figure', os.path.join(envs.RES_DIR,'addfigure'), 'addfigure', None, False),
-                ("EnableLineDrag", "Enable line drag", os.path.join(envs.RES_DIR,'linedrag'), 'enable_line_drag', None, True),
+                # ("EnableLineDrag", "Enable line drag", os.path.join(envs.RES_DIR,'linedrag'), 'enable_line_drag', None, True),
                 (None, None, None, None, None, False),
         )
         if is_floatmode:
