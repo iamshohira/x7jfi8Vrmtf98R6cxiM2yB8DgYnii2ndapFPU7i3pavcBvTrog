@@ -423,6 +423,7 @@ class LinesTable(BaseTool):
         self.cids = {}
         self._line_draggable = False
         self.load_lines()
+        self._legend_autoupdate = False
         # self.setContextMenuPolicy(Qt.CustomContextMenu)
         # self.customContextMenuRequested.connect(self.contextmenu)
         self.horizontalHeader().sectionClicked.connect(self.allset)
