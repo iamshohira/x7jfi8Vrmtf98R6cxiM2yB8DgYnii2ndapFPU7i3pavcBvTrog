@@ -350,8 +350,8 @@ class LinesToolbar(BaseToolbar):
         self.toolitems = (
             ("EnableLineDrag", "Enable line drag", os.path.join(envs.RES_DIR,'linedrag'), 'enable_line_drag', None, True),
             ('AutoLegend', 'Auto legend mode', os.path.join(envs.RES_DIR,'auto'), 'auto_legend', None, True),
-            ('Clone', 'Clone selected texts', os.path.join(envs.RES_DIR,'clone'), 'clone', None, False),
-            ('Remove', 'Remove selected texts', os.path.join(envs.RES_DIR,'trash'), 'remove', None, False),
+            ('Clone', 'Clone selected lines', os.path.join(envs.RES_DIR,'clone'), 'clone', None, False),
+            ('Remove', 'Remove selected lines', os.path.join(envs.RES_DIR,'trash'), 'remove', None, False),
         )
         super().__init__(parent)
 
@@ -900,16 +900,17 @@ class TextsTable(BaseTool):
             self.parent.setMaximumWidth(self.horizontalHeader().length()+40+20)
             self.parent.setMinimumWidth(100)
             height = self.verticalHeader().length()+40
-            height = height if height > 210 else 210
+            height = height if height > 180 else 180
             height = height if height < 400 else 400
             self.parent.setMinimumHeight(height)
             self.parent.setMaximumHeight(self.verticalHeader().length()+40)
             self.parent.setMinimumWidth(100)
 
-    def refresh_and_save(self):
+    def refresh_and_save(self, text):
         self.load_texts()
         for irow in range(self.rowCount()):
-            self._update(irow, -1)
+            if self.texts[irow] == text:
+                self._update(irow, -1)
 
 
 class TextsToolbar(BaseToolbar):
@@ -917,11 +918,11 @@ class TextsToolbar(BaseToolbar):
         self.table = parent.table
         FontDialog.set_figs(figs)
         self.ddhandler = DragHandler(figs)
+        self.ddhandler.moveFinished.connect(self.table.refresh_and_save)
         self.toolitems = (
             ('Add', 'Add new text', os.path.join(envs.RES_DIR,'addfigure'), 'add', None, False),
             ('Clone', 'Clone selected texts', os.path.join(envs.RES_DIR,'clone'), 'clone', None, False),
             ('Drag', 'Set texts draggable', os.path.join(envs.RES_DIR,'textdrag'), 'set_text_draggable', None, True),
-            ('Refresh', 'Refresh texts', os.path.join(envs.RES_DIR,'refresh'), 'refresh_and_save', None, False),
             ('Remove', 'Remove selected texts', os.path.join(envs.RES_DIR,'trash'), 'remove', None, False),
             ('Font', 'Change font', os.path.join(envs.RES_DIR,'font'), 'font_setting', None, False),
         )
@@ -933,9 +934,6 @@ class TextsToolbar(BaseToolbar):
     def add(self):
         self.table.add()
 
-    def refresh_and_save(self):
-        self.table.refresh_and_save()
-
     def set_text_draggable(self):
         self.ddhandler.set_draggable(self.actions["set_text_draggable"].isChecked())
 
@@ -946,8 +944,10 @@ class TextsToolbar(BaseToolbar):
         self.table.duplicate()
 
 
-class DragHandler:
+class DragHandler(QObject):
+    moveFinished = pyqtSignal(Text)
     def __init__(self, figs):
+        super().__init__()
         self.dragged = None
         self.cids = {}
         self.figs = figs
@@ -971,6 +971,7 @@ class DragHandler:
     
     def on_pick_event(self, event):
         if isinstance(event.artist, Text):
+            if event.artist.axes != None: return
             self.dragged = event.artist
             x0, y0 = self.dragged.get_position()
             self.pick_pos = (x0, y0, event.mouseevent.x, event.mouseevent.y)
@@ -990,6 +991,7 @@ class DragHandler:
     def on_release_event(self, event):
         if self.dragged is not None:
             self.dragged.figure.canvas.draw()
+            self.moveFinished.emit(self.dragged)
             self.dragged = None
         return True
     
