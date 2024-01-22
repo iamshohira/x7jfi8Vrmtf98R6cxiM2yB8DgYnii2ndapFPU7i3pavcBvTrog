@@ -80,7 +80,7 @@ class BaseMainWindow(QMainWindow):
         self.ns = self.ipython_w.ns
         self.linestool = LinesTool(self.figs, self.ns, self.is_floatmode)
         self.axestool = AxesTool(self.figs, self.is_floatmode)
-        self.textstool = TextsTool(self.figs, self.is_floatmode)
+        self.textstool = TextsTool(self.figs, self.ns, self.is_floatmode)
         self._create_main_window()
         self._set_slot()
         if reboot:

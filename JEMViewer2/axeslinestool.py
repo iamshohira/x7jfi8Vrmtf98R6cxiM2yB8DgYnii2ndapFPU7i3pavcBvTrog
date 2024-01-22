@@ -766,11 +766,11 @@ class AxesTool(BaseTool):
 class TextsTable(BaseTool):
     va_choices = ["top","center_baseline","center","baseline","bottom"]
     ha_choices = ["left","center","right"]
-    def __init__(self, figs, parent, fixsize = True):
+    def __init__(self, figs, ns, parent, fixsize = True):
         header = ["show","figs","text","x","y","va","ha","size","color","rotation"]
         title = "TextsTool"
         self.parent = parent
-        super().__init__(figs, None, header, title, fixsize)
+        super().__init__(figs, ns, header, title, fixsize)
         self.load_texts()
         self.horizontalHeader().sectionClicked.connect(self.allset)
 
@@ -997,10 +997,10 @@ class DragHandler(QObject):
     
 
 class TextsTool(QMainWindow):
-    def __init__(self, figs, fix_size, parent=None):
+    def __init__(self, figs, ns, fix_size, parent=None):
         super().__init__(parent)
         self.setWindowTitle("TextsTool")
-        self.table = TextsTable(figs, self, fix_size)
+        self.table = TextsTable(figs, ns, self, fix_size)
         self.toolbar = TextsToolbar(figs, self)
         self.toolbar.setMovable(False)
         self.toolbar.setFloatable(False)
