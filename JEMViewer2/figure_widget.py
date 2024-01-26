@@ -205,24 +205,24 @@ class MyFigureCanvas(FigureCanvas):
         self.close()
         
     def closeEvent(self, e):
-        if self.close_from_cui:
+        if self.close_from_cui or self.mdi != None:
             e.accept()
         else:
             msg = QMessageBox()
             msg.setWindowTitle("Remove")
-            msg.setText("Are you sure to remove this figure?\n or close JEM viewer?")
+            msg.setText("Are you sure to remove this figure?")#\n or close JEM viewer?")
             msg.setIcon(QMessageBox.Icon.Question)
-            rem = msg.addButton("Remove figure", QMessageBox.ButtonRole.AcceptRole)
+            rem = msg.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
             cancel = msg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-            close = msg.addButton("Close JEM", QMessageBox.ButtonRole.ActionRole)
+            # close = msg.addButton("Close JEM", QMessageBox.ButtonRole.ActionRole)
             msg.setDefaultButton(cancel)
             msg.exec()
 
             if msg.clickedButton() == rem:
                 self.remove_required.emit(self.fig_id)
                 savefile.save_removefigure(self.fig_id)
-            elif msg.clickedButton() == close:
-                self.parent_.close()
+            # elif msg.clickedButton() == close:
+            #     self.parent_.close()
             e.ignore()
 
 

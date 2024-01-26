@@ -267,8 +267,8 @@ class BaseMainWindow(QMainWindow):
         figure_w.alias_pasted.disconnect(self.linestool.move_by_drag)
         figure_w.remove_required.disconnect(self.remove_figure)
         figure_w.close_()
-        for i, figure_w in enumerate(self.figure_widgets):
-            figure_w.set_window_title(id=i)
+        for i, fw in enumerate(self.figure_widgets):
+            fw.set_window_title(id=i)
         self.update_alias()
         return figure_w
             

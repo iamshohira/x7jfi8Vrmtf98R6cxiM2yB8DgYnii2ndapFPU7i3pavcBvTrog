@@ -146,7 +146,7 @@ class SaveFiles():
                     filename = os.path.abspath(filename)
                     savedname = os.path.join(self.dirname, self.splittedfile(filename))
                     os.makedirs(os.path.dirname(savedname),exist_ok=True)
-                    shutil.copytree(filename, savedname)
+                    shutil.copytree(filename, savedname,dirs_exist_ok=True)
                     command = command.replace('"{}"'.format(filename,),"os.path.join(savedir,\"{}\")".format(self.splittedfile(filename),))
         self.save_commandline(command)
         if alias:
