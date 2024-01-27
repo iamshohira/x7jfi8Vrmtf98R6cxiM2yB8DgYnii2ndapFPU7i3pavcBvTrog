@@ -205,20 +205,23 @@ class MyFigureCanvas(FigureCanvas):
         self.close()
         
     def closeEvent(self, e):
-        if self.close_from_cui or self.mdi != None:
+        if self.close_from_cui:
             e.accept()
         else:
-            msg = QMessageBox()
-            msg.setWindowTitle("Remove")
-            msg.setText("Are you sure to remove this figure?")#\n or close JEM viewer?")
-            msg.setIcon(QMessageBox.Icon.Question)
-            rem = msg.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
-            cancel = msg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-            # close = msg.addButton("Close JEM", QMessageBox.ButtonRole.ActionRole)
-            msg.setDefaultButton(cancel)
-            msg.exec()
-
-            if msg.clickedButton() == rem:
+            if self.mdi == None:
+                msg = QMessageBox()
+                msg.setWindowTitle("Remove")
+                msg.setText("Are you sure to remove this figure?")#\n or close JEM viewer?")
+                msg.setIcon(QMessageBox.Icon.Question)
+                rem = msg.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
+                cancel = msg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+                # close = msg.addButton("Close JEM", QMessageBox.ButtonRole.ActionRole)
+                msg.setDefaultButton(cancel)
+                msg.exec()
+                accept = msg.clickedButton() == rem
+            else:
+                accept = True
+            if accept:
                 self.remove_required.emit(self.fig_id)
                 savefile.save_removefigure(self.fig_id)
             # elif msg.clickedButton() == close:
@@ -608,12 +611,14 @@ class MyToolbar(BaseToolbar):
             self.actions['zoom'].setChecked(list(self.mpl_toolbars.values())[0].mode.name == 'ZOOM')
 
     def add_canvas(self, canvas):
-        if self.actions['pan'].isChecked(): self.actions['pan'].trigger()
-        if self.actions['zoom'].isChecked(): self.actions['zoom'].trigger()
+        if (pan := self.actions['pan'].isChecked()): self.pan()
+        if (zoom := self.actions['zoom'].isChecked()): self.zoom()
         toolbar = NavigationToolbar(canvas, None)
         self.mpl_toolbars[canvas] = toolbar
         toolbar.locLabel = self.loc_label
         self.focused_canvas = canvas
+        if pan: self.pan()
+        if zoom: self.zoom()
 
     def remove_canvas(self, canvas):
         self.mpl_toolbars.pop(canvas)
