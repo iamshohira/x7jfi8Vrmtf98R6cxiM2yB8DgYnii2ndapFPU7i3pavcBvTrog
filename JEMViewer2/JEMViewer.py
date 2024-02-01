@@ -425,6 +425,8 @@ class BaseMainWindow(QMainWindow):
             "set_font": FontDialog.set_font,
             "set_fontsize": FontDialog.set_fontsize,
             "set_legend_loc": MyDraggableLegend.set_legend_loc,
+            "key_find": self.ipython_w.key_find,
+            "save_emulate_command": savefile.save_emulate_command,
         }
         self.ns.update(DEFAULT_NAMESPACE)
         self.ns.update(namespace)

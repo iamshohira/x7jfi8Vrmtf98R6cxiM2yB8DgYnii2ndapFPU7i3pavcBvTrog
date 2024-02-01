@@ -434,8 +434,48 @@ class set_ticks:
         cls.disp_as_int(numbers,axis)
         
     #compatibility
+    @classmethod
     def auto(cls,axis=None):
         cls.initialize(axis)
+
+    @classmethod
+    def visible_x(cls,b,axis=None):
+        """set visibility of x axis ticks
+
+        Args:
+            b (Bool)
+        """
+        if axis != None:
+            axes = [axis]
+        else:
+            axes = [a for f in figs for a in f.axes]
+
+        for axis in axes:
+            axis.tick_params(labelbottom=b)
+
+    @classmethod
+    def visible_y(cls,b,axis=None):
+        """set visibility of y axis ticks
+
+        Args:
+            b (Bool)
+        """
+        if axis != None:
+            axes = [axis]
+        else:
+            axes = [a for f in figs for a in f.axes]
+
+        for axis in axes:
+            axis.tick_params(labelleft=b)
         
 # compatibility
 ticks_offset = lambda b, axis=None: set_ticks.offset(b, axis)
+
+def record(f):
+    import functools
+    @functools.wraps(f)
+    def _wrapper(cls, *args, **kwargs):
+        instance_name = key_find(cls)
+        save_emulate_command(f"{instance_name}.{f.__name__}", *args, **kwargs)
+        f(cls, *args, **kwargs)
+    return _wrapper

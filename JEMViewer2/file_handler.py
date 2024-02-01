@@ -62,6 +62,25 @@ class SaveFiles():
             id["figs"] = self.figs.index(object.figure)
             id["texts"] = self.figs[id["figs"]].texts.index(object)
         return id
+    
+    def mpl_to_str(self, object):
+        typ = type(object)
+        if typ == Figure:
+            f_id = self.figs.index(object)
+            return f"figs[{f_id}]"
+        elif typ == Axes:
+            f_id = self.figs.index(object.figure)
+            a_id = self.figs[f_id].axes.index(object)
+            return f"figs[{f_id}].axes[{a_id}]"
+        elif typ == Line2D:
+            f_id = self.figs.index(object.axes.figure)
+            a_id = self.figs[f_id].axes.index(object.axes)
+            l_id = self.figs[f_id].axes[a_id].lines.index(object)
+            return f"figs[{f_id}].axes[{a_id}].lines[{l_id}]"
+        elif typ == Text:
+            f_id = self.figs.index(object.figure)
+            t_id = self.figs[f_id].texts.index(object)
+            return f"figs[{f_id}].texts[{t_id}]"
 
     def dict_to_mpl(self, dict):
         object = self.figs[dict["figs"]]
@@ -78,8 +97,9 @@ class SaveFiles():
         if typ == str:
             return f'"{x}"'
         elif typ in [Figure, Axes, Line2D, Text]:
-            id_dict = self.mpl_to_dict(x)
-            return str(id_dict)
+            # id_dict = self.mpl_to_dict(x)
+            # return str(id_dict)
+            return self.mpl_to_str(x)
         elif typ == np.ndarray:
             name = self.randomname(8)
             self.save_npdata(name, x)
