@@ -369,10 +369,13 @@ class BaseMainWindow(QMainWindow):
     def run_custom_loader(self,lis):
         functionname = lis[0]
         filename = lis[1]
-        inaxes = lis[2]
+        # inaxes = lis[2]
         newname = lis[3]
+        figaxid = lis[4]
         try:
-            self.ns[newname] = self.ns[functionname](filename,inaxes)
+            # self.ns[newname] = self.ns[functionname](filename,inaxes)
+            ax = f"figs[{figaxid['figs']}].axes[{figaxid['axes']}]"
+            self.ipython_w.executeCommand(f"{newname} = {functionname}('{filename}',{ax})",hidden=True)
             self.ns["justnow"] = self.ns[newname]
             text  = "# Output from \"{}\" was generated\n".format(functionname,)
             text += "# Name: {}\n".format(newname,)
