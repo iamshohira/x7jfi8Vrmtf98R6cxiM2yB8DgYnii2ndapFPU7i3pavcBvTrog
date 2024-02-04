@@ -14,10 +14,10 @@ from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 from JEMViewer2.ipython_widget import IPythonWidget
-from JEMViewer2.figure_widget import MyFigureCanvas, DDHandler, randomname, MyToolbar
+from JEMViewer2.figure_widget import MyFigureCanvas, DDHandler, MyToolbar
 from JEMViewer2.log_widget import LogWidget
 from JEMViewer2.edit_widget import EditWidget, TempWidget
-from JEMViewer2.file_handler import savefile, envs
+from JEMViewer2.file_handler import savefile, envs, randomname
 from JEMViewer2.addon_installer import AddonInstaller
 from JEMViewer2.axeslinestool import AxesTool, LinesTool, TextsTool, MyDraggableLegend
 from JEMViewer2.auto_update import AutoUpdater

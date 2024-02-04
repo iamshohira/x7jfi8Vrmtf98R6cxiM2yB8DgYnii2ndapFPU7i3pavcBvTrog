@@ -17,7 +17,7 @@ from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 matplotlib.use('QtAgg')
 
-from JEMViewer2.file_handler import savefile, envs
+from JEMViewer2.file_handler import savefile, envs, randomname
 from JEMViewer2.axeslinestool import BoolEdit, AliasButton
 from JEMViewer2.basetoolbar import BaseToolbar
 
@@ -30,10 +30,6 @@ from openpyxl.chart import ScatterChart, Reference, Series
 from openpyxl.utils.units import pixels_to_EMU
 
 screen_dpi = 72
-
-def randomname(n):
-   randlst = [random.choice(string.ascii_lowercase) for i in range(n)]
-   return ''.join(randlst)
 
 types = ["table","plot","ndarray","customfunc"]
 separators = ["space & tab", "tab", "comma", "customsep"]
@@ -172,11 +168,20 @@ class MyFigureCanvas(FigureCanvas):
             inaxes = self.inaxes(self.mouseEventCoords(event.position()))
             if inaxes == None: return
             self._move_plot(alias, inaxes, mod)
+            os.remove(event.mimeData().urls()[0].toString())
             return
         if event.mimeData().hasUrls():
             event.accept()
             for url in event.mimeData().urls():
                 file = url.toLocalFile()
+                if ".jem2plotdata" in file:
+                    inaxes = self.inaxes(self.mouseEventCoords(event.position()))
+                    if inaxes == None: return
+                    figaxid = self._identify_figaxid(inaxes)
+                    lis = ["copy_line_from_others", file, inaxes, randomname(4), figaxid]
+                    self.custom_loader.emit(lis)
+                    os.remove(file)
+                    return
                 if DDHandler.type == "table":
                     self.table_required.emit(file,DDHandler.delimiters[DDHandler.separator])
                 elif DDHandler.type == "plot":

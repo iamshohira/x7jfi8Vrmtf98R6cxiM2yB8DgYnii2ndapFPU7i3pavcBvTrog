@@ -16,6 +16,10 @@ exclude_command_list = [
     "addon_store",
     ]
 
+def randomname(n):
+   randlst = [random.choice(string.ascii_lowercase) for i in range(n)]
+   return ''.join(randlst)
+
 class Envs():
     RES_DIR = os.path.join(os.path.dirname(__file__),'resources')
     LOGO = os.path.join(os.path.join(RES_DIR,"JEMViewer2.png"))
@@ -213,8 +217,7 @@ class SaveFiles():
         return fp[1:]
 
     def randomname(self,n):
-        randlst = [random.choice(string.ascii_lowercase) for i in range(n)]
-        return 'jem_' + ''.join(randlst)
+        return 'jem_' + randomname(n)
 
     def remove_tmpdir(self):
         shutil.rmtree(self.dirname)

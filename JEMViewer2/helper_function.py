@@ -475,7 +475,15 @@ def record(f):
     import functools
     @functools.wraps(f)
     def _wrapper(cls, *args, **kwargs):
-        instance_name = key_find(cls)
-        save_emulate_command(f"{instance_name}.{f.__name__}", *args, **kwargs)
+        import inspect
+        if inspect.stack()[1].function != "<module>":
+            instance_name = key_find(cls)
+            save_emulate_command(f"{instance_name}.{f.__name__}", *args, **kwargs)
         f(cls, *args, **kwargs)
     return _wrapper
+
+def copy_line_from_others(filename, ax):
+    with open(filename, "rb") as f:
+        x, y, properties = pickle.load(f)
+    p, = ax.plot(x, y)
+    set_lineproperties(p, properties)

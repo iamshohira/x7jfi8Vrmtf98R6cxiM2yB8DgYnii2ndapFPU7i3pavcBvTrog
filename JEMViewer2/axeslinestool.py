@@ -12,6 +12,8 @@ from JEMViewer2.basetoolbar import BaseToolbar
 from matplotlib.text import Text
 from JEMViewer2.fontdialog import FontDialog
 from matplotlib.legend import Legend, DraggableLegend
+from JEMViewer2.figure_widget import randomname
+import pickle
 
 def sorted_markers():
     all_markers = list(figopt.MARKERS.keys())
@@ -199,6 +201,7 @@ class IntComboEdit(QComboBox):
 
 class AliasButton(QPushButton):
     changed = pyqtSignal()
+    picked = pyqtSignal(str, str)
     def __init__(self, parent=None, initial=None):
         super().__init__(parent)
         if initial != None:
@@ -211,6 +214,9 @@ class AliasButton(QPushButton):
         if e.buttons() == Qt.LeftButton:
             drag = QDrag(self)
             mime = QMimeData()
+            filename = os.path.join(envs.TEMP_DIR, randomname(8) + ".jem2plotdata")
+            self.picked.emit(self.text(), filename)
+            mime.setUrls([QUrl(filename)])
             # mime.setText(self.text())
             # print(mime.text())
             drag.setMimeData(mime)
@@ -492,9 +498,10 @@ class LinesTable(BaseTool):
                     self.appendCellWidgetToColumn("bool", initial=line.get_visible())
                     # lines
                     btn = self.appendCellWidgetToColumn("alias", initial=f"fig{h}ax{i}l{j}")
+                    btn.picked.connect(self.packing_line)
                     self.aliasbuttons[line] = btn
                     # zorder
-                    self.appendCellWidgetToColumn("int", initial=line.get_zorder())
+                    self.appendCellWidgetToColumn("float", initial=line.get_zorder())
                     # visible
                     # attribute check
                     if hasattr(line, "visible_in_legend"):
@@ -535,6 +542,16 @@ class LinesTable(BaseTool):
         line = self.lines[irow]
         self.gui_call("set_lineproperties", line, values)
         line.axes.figure.canvas.draw()
+
+    def packing_line(self, alias, filename):
+        s = re.split("fig|ax|l", alias)
+        line = self.figs[int(s[1])].axes[int(s[2])].lines[int(s[3])]
+        irow = self.lines.index(line)
+        x = list(line.get_xdata())
+        y = list(line.get_ydata())
+        properties = {h:self.cellWidget(irow,icol).value() for icol, h in enumerate(self.header)}
+        with open(filename, 'wb') as f:
+            pickle.dump((x,y,properties), f)
         
     def set_lineproperties(self, line, values):
         # if type(line) == dict:
