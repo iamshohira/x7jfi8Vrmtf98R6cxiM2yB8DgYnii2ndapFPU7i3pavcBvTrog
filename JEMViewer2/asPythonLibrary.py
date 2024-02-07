@@ -1,4 +1,4 @@
-from JEMViewer2.JEMViewer import MainWindow, envs, savefile
+from JEMViewer2.JEMViewer import FloatMainWindow, envs, savefile
 from JEMViewer2.deco_figure import DecoFigure
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon
@@ -23,7 +23,7 @@ if not os.path.exists(envs.SETTING_DIR):
 plt.style.use(envs.PLTPLOFILE)
 app = QApplication(sys.argv)
 app.setWindowIcon(QIcon(envs.LOGO))
-main = MainWindow(None, call_as_library=True, call_from = call_from)
+main = FloatMainWindow(None, call_as_library=True, call_from = call_from)
 
 def figure(num=1) -> Union[DecoFigure, list[DecoFigure]]:
     if num <= 1:
