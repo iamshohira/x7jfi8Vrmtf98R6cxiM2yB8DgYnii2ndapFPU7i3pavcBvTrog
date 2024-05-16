@@ -338,8 +338,9 @@ class MyDraggableLegend(DraggableLegend):
 
     @classmethod
     def set_legend_loc(cls, axes, loc):
-        # if type(axes) == dict:
-        #     axes = savefile.dict_to_mpl(axes)
+        # for compatibility
+        if type(axes) == dict:
+            axes = savefile.dict_to_mpl(axes)
         if axes.legend_ != None:
             axes.legend_._loc = loc
             axes.figure.canvas.draw()
@@ -554,8 +555,9 @@ class LinesTable(BaseTool):
             pickle.dump((x,y,properties), f)
         
     def set_lineproperties(self, line, values):
-        # if type(line) == dict:
-        #     line = savefile.dict_to_mpl(line)
+        # for compatibility
+        if type(line) == dict:
+            line = savefile.dict_to_mpl(line)
         line.set_visible(values["show"])
         line.set_zorder(values["zorder"])
         if "legend" in values.keys():
@@ -594,11 +596,13 @@ class LinesTable(BaseTool):
                 # nl.set_draggable(drag)
 
     def move_line(self, old_line, new_axes, delete=True):
-        # if type(old_line) == dict:
-        #     old_line = savefile.dict_to_mpl(old_line)
+        # for compatibility
+        if type(old_line) == dict:
+            old_line = savefile.dict_to_mpl(old_line)
         if new_axes != None:
-            # if type(new_axes) == dict:
-            #     new_axes = savefile.dict_to_mpl(new_axes)
+         # for compatibility
+            if type(new_axes) == dict:
+                new_axes = savefile.dict_to_mpl(new_axes)
             new_line, = new_axes.plot(*old_line.get_data())
             new_line.set_visible(old_line.get_visible())
             new_line.set_zorder(old_line.get_zorder())
@@ -866,11 +870,13 @@ class TextsTable(BaseTool):
         text.set_rotation(values["rotation"])
 
     def move_text(self, old_text, new_fig, delete=True):
-        # if type(old_text) == dict:
-        #     old_text = savefile.dict_to_mpl(old_text)
+        # for compatibility
+        if type(old_text) == dict:
+            old_text = savefile.dict_to_mpl(old_text)
         if new_fig != None:
-            # if type(new_fig) == dict:
-            #     new_fig = savefile.dict_to_mpl(new_fig)
+            # for compatibility
+            if type(new_fig) == dict:
+                new_fig = savefile.dict_to_mpl(new_fig)
             new_text = new_fig.text(*old_text.get_position(), old_text.get_text(), picker=True)
             new_text.set_visible(old_text.get_visible())
             new_text.set_zorder(old_text.get_zorder())
@@ -884,8 +890,9 @@ class TextsTable(BaseTool):
         self.load_texts()
 
     def add_text(self, fig):
-        # if type(fig) == dict:
-        #     fig = savefile.dict_to_mpl(fig)
+        # for compatibility
+        if type(fig) == dict:
+            fig = savefile.dict_to_mpl(fig)
         fig.text(0.5, 0.5, "new text", va='top', ha='left', picker=True)
         fig.canvas.draw()
         self.load_texts()
